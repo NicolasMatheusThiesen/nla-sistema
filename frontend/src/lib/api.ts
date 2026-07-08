@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { supabase } from './supabase';
 
 const getDefaultApiUrl = () => {
   if (typeof window === 'undefined') return 'http://localhost:3001';
@@ -21,9 +22,10 @@ export class ApiError extends Error {
   }
 }
 
-// Em um sistema real com auth, pegaríamos o token aqui
+// Fetch token via Supabase Auth
 async function getToken(): Promise<string | null> {
-  return localStorage.getItem('access_token');
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token || null;
 }
 
 export const apiClient = axios.create({

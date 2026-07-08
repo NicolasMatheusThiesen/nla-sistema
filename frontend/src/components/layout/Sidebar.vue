@@ -1,9 +1,16 @@
 ﻿<script setup lang="ts">
 import { ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { supabase } from '@/lib/supabase';
 
 const isMobileMenuOpen = ref(false);
 const route = useRoute();
+const router = useRouter();
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  router.push('/login');
+};
 
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
@@ -75,7 +82,7 @@ defineExpose({ toggleMobileMenu });
           <p class="user-name">Administrador</p>
           <p class="user-role">admin</p>
         </div>
-        <button class="logout-btn" title="Sair">
+        <button class="logout-btn" title="Sair" @click="handleLogout">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>

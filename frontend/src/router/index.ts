@@ -1,5 +1,7 @@
 ﻿import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../layouts/AppLayout.vue'
+import LoginView from '../views/LoginView.vue'
+import { supabase } from '../lib/supabase'
 import DashboardView from '../views/DashboardView.vue'
 import ClientesView from '../views/ClientesView.vue'
 import MaquinasView from '../views/MaquinasView.vue'
@@ -23,6 +25,12 @@ import ContasBancariasView from '../views/ContasBancariasView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: { requiresAuth: false }
+    },
     {
       path: '/',
       component: AppLayout,
@@ -122,5 +130,18 @@ const router = createRouter({
     },
   ],
 })
+
+router.beforeEach(async (to, from, next) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+
+  if (requiresAuth && !session) {
+    next('/login');
+  } else if (to.path === '/login' && session) {
+    next('/');
+  } else {
+    next();
+  }
+});
 
 export default router
