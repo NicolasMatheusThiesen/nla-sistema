@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -8,25 +8,25 @@ const router = Router();
 
 const materialVendaSchema = z.object({
   material_id: z.string().uuid(),
-  quantidade: z.number().positive(),
-  valor_unitario: z.number().min(0),
-  valor_total: z.number().min(0),
+  quantidade: z.coerce.number().positive(),
+  valor_unitario: z.coerce.number().min(0),
+  valor_total: z.coerce.number().min(0),
 });
 
 const vendaSchema = z.object({
   maquina_id: z.string().uuid().optional().nullable().transform(v => v === '' ? null : v),
   cliente_id: z.string().uuid(),
-  valor_venda: z.number().min(0),
-  valor_custo: z.number().min(0).default(0),
+  valor_venda: z.coerce.number().min(0),
+  valor_custo: z.coerce.number().min(0).default(0),
   forma_pagamento: z.enum(['avista', 'parcelado', 'financiado']),
-  numero_parcelas: z.number().int().min(1).default(1),
+  numero_parcelas: z.coerce.number().int().min(1).default(1),
   data_venda: z.string(),
   observacoes: z.string().optional().transform(v => v === '' ? undefined : v),
-  // Campos de comissão
+  // Campos de comissÃ£o
   vendedor_id: z.string().uuid().optional().nullable().transform(v => v === '' ? null : v),
-  percentual_comissao: z.number().min(0).max(100).default(0),
+  percentual_comissao: z.coerce.number().min(0).max(100).default(0),
   tipo_comissao: z.enum(['percentual', 'fixo']).default('percentual'),
-  valor_comissao: z.number().min(0).default(0),
+  valor_comissao: z.coerce.number().min(0).default(0),
   // Materiais (Produtos)
   materiais: z.array(materialVendaSchema).optional().default([]),
 });
@@ -62,7 +62,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Venda não encontrada' });
+    if (!data) return res.status(404).json({ error: 'Venda nÃ£o encontrada' });
     
     res.json(data);
   } catch {
@@ -78,15 +78,15 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
 
     let custoMaquina = 0;
 
-    // Verificar máquina (opcional agora)
+    // Verificar mÃ¡quina (opcional agora)
     if (body.maquina_id) {
       const { data: maquina } = await supabase.from('maquinas').select('status, valor_aquisicao').eq('id', body.maquina_id).eq('empresa_id', empresa_id).single();
-      if (!maquina) return res.status(404).json({ error: 'Máquina não encontrada' });
-      if (maquina.status === 'locada') return res.status(400).json({ error: 'Máquina está locada e não pode ser vendida' });
+      if (!maquina) return res.status(404).json({ error: 'MÃ¡quina nÃ£o encontrada' });
+      if (maquina.status === 'locada') return res.status(400).json({ error: 'MÃ¡quina estÃ¡ locada e nÃ£o pode ser vendida' });
       custoMaquina = maquina.valor_aquisicao;
     }
 
-    // Calcular valor da comissão
+    // Calcular valor da comissÃ£o
     const valor_comissao = calculateComissao({
       tipoComissao: body.tipo_comissao,
       valorMensal: body.valor_venda,
@@ -111,7 +111,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
 
     if (error) throw error;
 
-    // Marcar máquina como vendida se houver
+    // Marcar mÃ¡quina como vendida se houver
     if (body.maquina_id) {
       await supabase.from('maquinas').update({ status: 'vendida', ativo: false }).eq('id', body.maquina_id);
     }
@@ -137,7 +137,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       }
     }
 
-    // Criar lançamento de receita
+    // Criar lanÃ§amento de receita
     await supabase.from('lancamentos').insert({
       empresa_id,
       tipo: 'receita',
@@ -157,7 +157,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
   }
 });
 
-// PUT /api/vendas/:id (Edição parcial)
+// PUT /api/vendas/:id (EdiÃ§Ã£o parcial)
 router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req: AuthRequest, res: Response) => {
   try {
     const { empresa_id } = req.user!;
@@ -167,7 +167,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
     const materiais = body.materiais;
     delete (body as any).materiais;
 
-    // Recalcular comissão se percentual, tipo ou valor_venda mudaram
+    // Recalcular comissÃ£o se percentual, tipo ou valor_venda mudaram
     if (body.valor_venda !== undefined || body.percentual_comissao !== undefined || body.tipo_comissao !== undefined || body.valor_comissao !== undefined) {
        const { data: current } = await supabase.from('vendas').select('*').eq('id', id).single();
        if (current) {
@@ -194,7 +194,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!venda) return res.status(404).json({ error: 'Venda não encontrada' });
+    if (!venda) return res.status(404).json({ error: 'Venda nÃ£o encontrada' });
 
     // Atualizar materiais (simplificado: apagar tudo e recriar)
     if (materiais !== undefined) {
@@ -227,7 +227,7 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const { error } = await supabase.from('vendas').delete().eq('id', id).eq('empresa_id', empresa_id);
     if (error) throw error;
     
-    // (Opcional: Voltar status da máquina e estornar estoque)
+    // (Opcional: Voltar status da mÃ¡quina e estornar estoque)
 
     res.json({ message: 'Venda removida' });
   } catch {

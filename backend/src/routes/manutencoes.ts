@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -7,16 +7,16 @@ const router = Router();
 
 const materialManutencaoSchema = z.object({
   material_id: z.string().uuid(),
-  quantidade: z.number().positive(),
-  valor_unitario: z.number().min(0),
-  valor_total: z.number().min(0),
+  quantidade: z.coerce.number().positive(),
+  valor_unitario: z.coerce.number().min(0),
+  valor_total: z.coerce.number().min(0),
 });
 
 const servicoManutencaoSchema = z.object({
   servico_id: z.string().uuid(),
-  quantidade: z.number().positive().default(1),
-  valor_unitario: z.number().min(0),
-  valor_total: z.number().min(0),
+  quantidade: z.coerce.number().positive().default(1),
+  valor_unitario: z.coerce.number().min(0),
+  valor_total: z.coerce.number().min(0),
 });
 
 const manutencaoSchema = z.object({
@@ -27,7 +27,7 @@ const manutencaoSchema = z.object({
   
   tipo: z.enum(['preventiva', 'corretiva', 'reforma']),
   fornecedor: z.string().optional().transform(v => v === '' ? undefined : v),
-  custo: z.number().min(0).default(0),
+  custo: z.coerce.number().min(0).default(0),
   data_inicio: z.string(),
   data_fim: z.string().optional().transform(v => v === '' ? undefined : v),
   descricao: z.string().optional().transform(v => v === '' ? undefined : v),
@@ -61,7 +61,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (error) throw error;
     res.json(data);
   } catch {
-    res.status(500).json({ error: 'Erro ao listar manutenções' });
+    res.status(500).json({ error: 'Erro ao listar manutenÃ§Ãµes' });
   }
 });
 
@@ -79,11 +79,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Manutenção não encontrada' });
+    if (!data) return res.status(404).json({ error: 'ManutenÃ§Ã£o nÃ£o encontrada' });
     
     res.json(data);
   } catch {
-    res.status(500).json({ error: 'Erro ao buscar manutenção' });
+    res.status(500).json({ error: 'Erro ao buscar manutenÃ§Ã£o' });
   }
 });
 
@@ -98,7 +98,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     delete (body as any).materiais;
     delete (body as any).servicos;
 
-    // Se for de máquina interna, gerenciar status da máquina
+    // Se for de mÃ¡quina interna, gerenciar status da mÃ¡quina
     if (!body.is_terceiro && body.maquina_id) {
       if (body.status === 'em_andamento' || body.tipo === 'corretiva') {
         await supabase.from('maquinas').update({ status: 'manutencao' }).eq('id', body.maquina_id).eq('empresa_id', empresa_id);
@@ -130,7 +130,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       }));
       await supabase.from('manutencao_materiais').insert(inserts);
       
-      // Descontar do estoque se material for de consumo/manutenção
+      // Descontar do estoque se material for de consumo/manutenÃ§Ã£o
       for (const m of materiais) {
         const { data: matData } = await supabase.from('materiais').select('quantidade_estoque').eq('id', m.material_id).single();
         if (matData) {
@@ -139,7 +139,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       }
     }
 
-    // Inserir serviços
+    // Inserir serviÃ§os
     if (servicos && servicos.length > 0) {
       const inserts = servicos.map(s => ({
         manutencao_id: data.id,
@@ -151,15 +151,15 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       await supabase.from('manutencao_servicos').insert(inserts);
     }
 
-    // Se for terceiro (OS), criar um lançamento de receita se cobrar
+    // Se for terceiro (OS), criar um lanÃ§amento de receita se cobrar
     // if (body.is_terceiro && body.custo > 0 && body.status === 'concluida') {
-    //   Poderíamos criar a receita aqui automaticamente ou deixar para o financeiro.
+    //   PoderÃ­amos criar a receita aqui automaticamente ou deixar para o financeiro.
     // }
 
     res.status(201).json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao criar manutenção' });
+    res.status(500).json({ error: 'Erro ao criar manutenÃ§Ã£o' });
   }
 });
 
@@ -184,7 +184,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Manutenção não encontrada' });
+    if (!data) return res.status(404).json({ error: 'ManutenÃ§Ã£o nÃ£o encontrada' });
 
     // Atualizar materiais
     if (materiais !== undefined) {
@@ -201,7 +201,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       }
     }
 
-    // Atualizar serviços
+    // Atualizar serviÃ§os
     if (servicos !== undefined) {
       await supabase.from('manutencao_servicos').delete().eq('manutencao_id', id);
       if (servicos.length > 0) {
@@ -216,7 +216,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       }
     }
 
-    // Atualizar status da máquina
+    // Atualizar status da mÃ¡quina
     if (body.status && data.maquina_id && !data.is_terceiro) {
       if (body.status === 'concluida') {
         const { data: maquina } = await supabase.from('maquinas').select('status').eq('id', data.maquina_id).single();
@@ -231,7 +231,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao atualizar manutenção' });
+    res.status(500).json({ error: 'Erro ao atualizar manutenÃ§Ã£o' });
   }
 });
 
@@ -243,16 +243,16 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
 
     const { data: man } = await supabase.from('manutencoes').select('maquina_id, status').eq('id', id).eq('empresa_id', empresa_id).single();
     if (man && man.maquina_id && man.status !== 'concluida') {
-       // Libera a máquina
+       // Libera a mÃ¡quina
        await supabase.from('maquinas').update({ status: 'disponivel' }).eq('id', man.maquina_id);
     }
 
     const { error } = await supabase.from('manutencoes').delete().eq('id', id).eq('empresa_id', empresa_id);
     if (error) throw error;
     
-    res.json({ message: 'Manutenção/OS removida' });
+    res.json({ message: 'ManutenÃ§Ã£o/OS removida' });
   } catch {
-    res.status(500).json({ error: 'Erro ao remover manutenção' });
+    res.status(500).json({ error: 'Erro ao remover manutenÃ§Ã£o' });
   }
 });
 

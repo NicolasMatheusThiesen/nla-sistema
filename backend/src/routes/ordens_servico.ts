@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -21,15 +21,15 @@ const osSchema = z.object({
   observacoes: z.string().nullish().or(z.literal('')),
   servicos: z.array(z.object({
     servico_id: z.string().uuid(),
-    quantidade: z.number().positive().default(1),
-    valor_unitario: z.number().min(0),
-    valor_total: z.number().min(0),
+    quantidade: z.coerce.number().positive().default(1),
+    valor_unitario: z.coerce.number().min(0),
+    valor_total: z.coerce.number().min(0),
   })).default([]),
   materiais: z.array(z.object({
     material_id: z.string().uuid(),
-    quantidade: z.number().positive(),
-    valor_unitario: z.number().min(0),
-    valor_total: z.number().min(0),
+    quantidade: z.coerce.number().positive(),
+    valor_unitario: z.coerce.number().min(0),
+    valor_total: z.coerce.number().min(0),
   })).default([]),
 });
 
@@ -59,7 +59,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (error) throw error;
     res.json(data);
   } catch {
-    res.status(500).json({ error: 'Erro ao listar ordens de serviço' });
+    res.status(500).json({ error: 'Erro ao listar ordens de serviÃ§o' });
   }
 });
 
@@ -83,7 +83,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'OS não encontrada' });
+    if (!data) return res.status(404).json({ error: 'OS nÃ£o encontrada' });
     res.json(data);
   } catch {
     res.status(500).json({ error: 'Erro ao buscar OS' });
@@ -133,7 +133,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional', 'financeiro')
       await supabase.from('os_materiais').insert(body.materiais.map(m => ({ os_id: os.id, ...m })));
     }
 
-    // Se concluída, gerar lançamento de receita
+    // Se concluÃ­da, gerar lanÃ§amento de receita
     let lancamento_id: string | null = null;
     if (body.status === 'concluida' && valorTotal > 0) {
       const { data: lanc } = await supabase
@@ -141,7 +141,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional', 'financeiro')
         .insert({
           empresa_id,
           tipo: 'receita',
-          descricao: `OS ${numero} — ${body.descricao || 'Ordem de Serviço'}`,
+          descricao: `OS ${numero} â€” ${body.descricao || 'Ordem de ServiÃ§o'}`,
           valor: valorTotal,
           data_competencia: body.data_conclusao || body.data_abertura,
           status: 'pendente',
@@ -199,14 +199,14 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional', 'financeiro
       if (materiais.length > 0) await supabase.from('os_materiais').insert(materiais.map(m => ({ os_id: id, ...m })));
     }
 
-    // Se foi concluída agora e não tem lançamento, criar
+    // Se foi concluÃ­da agora e nÃ£o tem lanÃ§amento, criar
     if (body.status === 'concluida' && data && !data.lancamento_id && valorTotal && valorTotal > 0) {
       const { data: current } = await supabase.from('ordens_servico').select('*').eq('id', id).single();
       if (current && !current.lancamento_id) {
         const { data: lanc } = await supabase.from('lancamentos').insert({
           empresa_id,
           tipo: 'receita',
-          descricao: `OS ${current.numero} — ${current.descricao || 'Ordem de Serviço'}`,
+          descricao: `OS ${current.numero} â€” ${current.descricao || 'Ordem de ServiÃ§o'}`,
           valor: valorTotal,
           data_competencia: body.data_conclusao || current.data_abertura,
           status: 'pendente',
@@ -230,7 +230,7 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const { empresa_id } = req.user!;
     const { id } = req.params;
     
-    // Cancelar lançamento vinculado se houver
+    // Cancelar lanÃ§amento vinculado se houver
     const { data: os } = await supabase.from('ordens_servico').select('lancamento_id').eq('id', id).single();
     if (os?.lancamento_id) {
       await supabase.from('lancamentos').update({ status: 'cancelado' }).eq('id', os.lancamento_id);

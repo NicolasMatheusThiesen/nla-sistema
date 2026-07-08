@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -9,7 +9,7 @@ const lancamentoSchema = z.object({
   tipo: z.enum(['receita', 'despesa']),
   categoria_id: z.string().uuid().nullish().or(z.literal('')),
   descricao: z.string().min(1),
-  valor: z.number().positive(),
+  valor: z.coerce.number().positive(),
   data_competencia: z.string(),
   data_vencimento: z.string().nullish().or(z.literal('')),
   data_pagamento: z.string().nullish().or(z.literal('')),
@@ -21,7 +21,7 @@ const lancamentoSchema = z.object({
   contrato_id: z.string().uuid().nullish().or(z.literal('')),
   observacoes: z.string().nullish().or(z.literal('')),
   recorrente: z.boolean().default(false),
-  numero_parcelas: z.number().int().min(1).default(1),
+  numero_parcelas: z.coerce.number().int().min(1).default(1),
 });
 
 // GET /api/lancamentos
@@ -55,11 +55,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json({ data, total: count, page: parseInt(page as string), limit: parseInt(limit as string) });
   } catch {
-    res.status(500).json({ error: 'Erro ao listar lançamentos' });
+    res.status(500).json({ error: 'Erro ao listar lanÃ§amentos' });
   }
 });
 
-// GET /api/lancamentos/fluxo-caixa  — extrato consolidado
+// GET /api/lancamentos/fluxo-caixa  â€” extrato consolidado
 router.get('/fluxo-caixa', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { empresa_id } = req.user!;
@@ -141,7 +141,7 @@ router.post('/', authenticate, requireRole('admin', 'financeiro'), async (req: A
         data_vencimento: isoDate,
       });
 
-      // Incrementa 1 mês para a próxima parcela
+      // Incrementa 1 mÃªs para a prÃ³xima parcela
       currentVencimento.setMonth(currentVencimento.getMonth() + 1);
     }
 
@@ -154,7 +154,7 @@ router.post('/', authenticate, requireRole('admin', 'financeiro'), async (req: A
     res.status(201).json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao criar lançamento' });
+    res.status(500).json({ error: 'Erro ao criar lanÃ§amento' });
   }
 });
 
@@ -185,7 +185,7 @@ router.put('/:id', authenticate, requireRole('admin', 'financeiro'), async (req:
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao atualizar lançamento' });
+    res.status(500).json({ error: 'Erro ao atualizar lanÃ§amento' });
   }
 });
 
@@ -195,9 +195,9 @@ router.delete('/:id', authenticate, requireRole('admin', 'financeiro'), async (r
     const { empresa_id } = req.user!;
     const { id } = req.params;
     await supabase.from('lancamentos').update({ status: 'cancelado' }).eq('id', id).eq('empresa_id', empresa_id);
-    res.json({ message: 'Lançamento cancelado' });
+    res.json({ message: 'LanÃ§amento cancelado' });
   } catch {
-    res.status(500).json({ error: 'Erro ao cancelar lançamento' });
+    res.status(500).json({ error: 'Erro ao cancelar lanÃ§amento' });
   }
 });
 

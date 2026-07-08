@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -9,9 +9,9 @@ const materialSchema = z.object({
   nome: z.string().min(1),
   finalidade: z.enum(['consumo', 'manutencao', 'revenda', 'multiplo']),
   unidade_medida: z.string().optional().default('un'),
-  custo_unitario: z.number().min(0).default(0),
-  valor_venda: z.number().min(0).default(0),
-  quantidade_estoque: z.number().min(0).default(0),
+  custo_unitario: z.coerce.number().min(0).default(0),
+  valor_venda: z.coerce.number().min(0).default(0),
+  quantidade_estoque: z.coerce.number().min(0).default(0),
   observacoes: z.string().optional().transform(v => v === '' ? undefined : v),
   ativo: z.boolean().optional().default(true),
 });
@@ -58,7 +58,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Material não encontrado' });
+    if (!data) return res.status(404).json({ error: 'Material nÃ£o encontrado' });
     
     res.json(data);
   } catch {
@@ -102,7 +102,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Material não encontrado' });
+    if (!data) return res.status(404).json({ error: 'Material nÃ£o encontrado' });
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });

@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -10,14 +10,14 @@ const maquinaSchema = z.object({
   modelo: z.string().nullish().or(z.literal('')),
   marca: z.string().nullish().or(z.literal('')),
   numero_serie: z.string().nullish().or(z.literal('')),
-  ano_fabricacao: z.number().int().min(1900).max(new Date().getFullYear()).nullish(),
+  ano_fabricacao: z.coerce.number().int().min(1900).max(new Date().getFullYear()).nullish(),
   tipo: z.string().min(1), // dynamic type from database
   subtipo: z.string().nullish().or(z.literal('')),
-  capacidade_kg: z.number().positive().nullish(),
-  altura_max_elevacao: z.number().positive().nullish(),
-  valor_aquisicao: z.number().min(0).default(0),
-  valor_mercado: z.number().min(0).default(0),
-  custo_mensal_estimado: z.number().min(0).default(0),
+  capacidade_kg: z.coerce.number().positive().nullish(),
+  altura_max_elevacao: z.coerce.number().positive().nullish(),
+  valor_aquisicao: z.coerce.number().min(0).default(0),
+  valor_mercado: z.coerce.number().min(0).default(0),
+  custo_mensal_estimado: z.coerce.number().min(0).default(0),
   data_aquisicao: z.string().nullish().or(z.literal('')),
   observacoes: z.string().nullish().or(z.literal('')),
 });
@@ -51,7 +51,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     res.json(data);
   } catch (err) {
     console.error('GET /api/maquinas:', err);
-    res.status(500).json({ error: 'Erro ao listar máquinas' });
+    res.status(500).json({ error: 'Erro ao listar mÃ¡quinas' });
   }
 });
 
@@ -82,7 +82,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     ]);
 
     if (maquinaResult.error || !maquinaResult.data) {
-      return res.status(404).json({ error: 'Máquina não encontrada' });
+      return res.status(404).json({ error: 'MÃ¡quina nÃ£o encontrada' });
     }
 
     // Calcular rentabilidade
@@ -108,7 +108,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar máquina' });
+    res.status(500).json({ error: 'Erro ao buscar mÃ¡quina' });
   }
 });
 
@@ -131,7 +131,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
   } catch (err) {
     console.error('POST /api/maquinas:', err);
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao criar máquina' });
+    res.status(500).json({ error: 'Erro ao criar mÃ¡quina' });
   }
 });
 
@@ -153,11 +153,11 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Máquina não encontrada' });
+    if (!data) return res.status(404).json({ error: 'MÃ¡quina nÃ£o encontrada' });
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao atualizar máquina' });
+    res.status(500).json({ error: 'Erro ao atualizar mÃ¡quina' });
   }
 });
 
@@ -174,9 +174,9 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
       .eq('empresa_id', empresa_id);
 
     if (error) throw error;
-    res.json({ message: 'Máquina removida com sucesso' });
+    res.json({ message: 'MÃ¡quina removida com sucesso' });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao remover máquina' });
+    res.status(500).json({ error: 'Erro ao remover mÃ¡quina' });
   }
 });
 
@@ -197,7 +197,7 @@ router.get('/:id/rentabilidade', authenticate, async (req: AuthRequest, res: Res
       supabase.from('contrato_itens').select('valor_unitario, contrato_id, contratos(data_inicio, data_fim, status)').eq('maquina_id', id),
     ]);
 
-    if (!maquinaResult.data) return res.status(404).json({ error: 'Máquina não encontrada' });
+    if (!maquinaResult.data) return res.status(404).json({ error: 'MÃ¡quina nÃ£o encontrada' });
 
     const totalCustoManutencao = manutencoesResult.data?.reduce((sum, m) => sum + (m.custo || 0), 0) || 0;
     const valorAquisicao = maquinaResult.data.valor_aquisicao || 0;

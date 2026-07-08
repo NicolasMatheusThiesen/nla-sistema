@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { authenticate } from '../middleware/auth';
 import { z } from 'zod';
@@ -11,8 +11,8 @@ const contaSchema = z.object({
   banco: z.string().optional(),
   agencia: z.string().optional(),
   conta: z.string().optional(),
-  saldo_inicial: z.number().default(0),
-  saldo_atual: z.number().default(0),
+  saldo_inicial: z.coerce.number().default(0),
+  saldo_atual: z.coerce.number().default(0),
   ativo: z.boolean().default(true)
 });
 
@@ -29,7 +29,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (error) throw error;
     res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao buscar contas bancárias' });
+    res.status(500).json({ error: 'Erro ao buscar contas bancÃ¡rias' });
   }
 });
 
@@ -39,7 +39,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const { empresa_id } = req.user!;
     const body = contaSchema.parse(req.body);
 
-    // Saldo atual começa igual ao inicial
+    // Saldo atual comeÃ§a igual ao inicial
     if (body.saldo_inicial && !body.saldo_atual) {
       body.saldo_atual = body.saldo_inicial;
     }
@@ -54,7 +54,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     res.status(201).json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
-    res.status(500).json({ error: 'Erro ao criar conta bancária' });
+    res.status(500).json({ error: 'Erro ao criar conta bancÃ¡ria' });
   }
 });
 
@@ -74,11 +74,11 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Conta não encontrada' });
+    if (!data) return res.status(404).json({ error: 'Conta nÃ£o encontrada' });
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
-    res.status(500).json({ error: 'Erro ao atualizar conta bancária' });
+    res.status(500).json({ error: 'Erro ao atualizar conta bancÃ¡ria' });
   }
 });
 
@@ -88,7 +88,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const { empresa_id } = req.user!;
     const { id } = req.params;
 
-    // Verificar se tem lançamentos atrelados (não pode deletar se tiver)
+    // Verificar se tem lanÃ§amentos atrelados (nÃ£o pode deletar se tiver)
     const { data: lancamentos } = await supabase
       .from('lancamentos')
       .select('id')
@@ -96,7 +96,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .limit(1);
 
     if (lancamentos && lancamentos.length > 0) {
-      return res.status(400).json({ error: 'Não é possível excluir a conta bancária pois existem lançamentos vinculados a ela.' });
+      return res.status(400).json({ error: 'NÃ£o Ã© possÃ­vel excluir a conta bancÃ¡ria pois existem lanÃ§amentos vinculados a ela.' });
     }
 
     const { error } = await supabase
@@ -106,9 +106,9 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .eq('empresa_id', empresa_id);
 
     if (error) throw error;
-    res.json({ message: 'Conta bancária removida' });
+    res.json({ message: 'Conta bancÃ¡ria removida' });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao remover conta bancária' });
+    res.status(500).json({ error: 'Erro ao remover conta bancÃ¡ria' });
   }
 });
 

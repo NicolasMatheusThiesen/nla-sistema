@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -9,9 +9,9 @@ const compraSchema = z.object({
   descricao: z.string().min(1),
   fornecedor_id: z.string().uuid().nullish().or(z.literal('')),
   material_id: z.string().uuid().nullish().or(z.literal('')),
-  quantidade: z.number().positive().default(1),
-  valor_unitario: z.number().min(0).default(0),
-  valor_total: z.number().positive(),
+  quantidade: z.coerce.number().positive().default(1),
+  valor_unitario: z.coerce.number().min(0).default(0),
+  valor_total: z.coerce.number().positive(),
   finalidade: z.enum(['consumo', 'revenda']),
   data_compra: z.string(),
   nota_fiscal: z.string().nullish().or(z.literal('')),
@@ -50,7 +50,7 @@ router.post('/', authenticate, requireRole('admin', 'financeiro', 'operacional')
     if (body.material_id === '') body.material_id = null;
     if (body.fornecedor_id === '') body.fornecedor_id = null;
 
-    // Criar lançamento de despesa no financeiro
+    // Criar lanÃ§amento de despesa no financeiro
     const { data: lanc, error: lancError } = await supabase
       .from('lancamentos')
       .insert({
@@ -113,7 +113,7 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const { empresa_id } = req.user!;
     const { id } = req.params;
     
-    // Cancelar lançamento vinculado
+    // Cancelar lanÃ§amento vinculado
     const { data: compra } = await supabase.from('compras').select('lancamento_id').eq('id', id).single();
     if (compra?.lancamento_id) {
       await supabase.from('lancamentos').update({ status: 'cancelado' }).eq('id', compra.lancamento_id);

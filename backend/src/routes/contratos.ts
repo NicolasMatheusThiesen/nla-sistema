@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -12,23 +12,23 @@ const contratoSchema = z.object({
   tipo_locacao: z.enum(['mensal', 'semestral', 'anual']),
   data_inicio: z.string(),
   data_fim: z.string().nullish().or(z.literal('')),
-  dia_vencimento: z.number().int().min(1).max(28).default(10),
+  dia_vencimento: z.coerce.number().int().min(1).max(28).default(10),
   data_primeiro_vencimento: z.string().nullish().or(z.literal('')),
-  valor_mensal: z.number().positive(),
+  valor_mensal: z.coerce.number().positive(),
   indice_reajuste: z.enum(['nenhum', 'ipca', 'igpm', 'fixo']).default('nenhum'),
-  percentual_reajuste_fixo: z.number().nullish(),
+  percentual_reajuste_fixo: z.coerce.number().nullish(),
   manutencao_inclusa: z.boolean().default(false),
   seguro_incluso: z.boolean().default(false),
-  multa_rescisao_percentual: z.number().min(0).max(100).default(10),
+  multa_rescisao_percentual: z.coerce.number().min(0).max(100).default(10),
   clausulas_adicionais: z.string().nullish().or(z.literal('')),
   observacoes: z.string().nullish().or(z.literal('')),
   maquina_ids: z.array(z.string().uuid()).min(1),
-  valores_unitarios: z.array(z.number().positive()),
-  // Campos de comissão
+  valores_unitarios: z.array(z.coerce.number().positive()),
+  // Campos de comissÃ£o
   vendedor_id: z.string().uuid().nullish().or(z.literal('')),
-  percentual_comissao: z.number().min(0).max(100).default(0),
+  percentual_comissao: z.coerce.number().min(0).max(100).default(0),
   tipo_comissao: z.enum(['percentual', 'fixo']).default('percentual'),
-  valor_comissao: z.number().min(0).default(0),
+  valor_comissao: z.coerce.number().min(0).default(0),
   numero: z.string().nullish().or(z.literal('')),
 });
 
@@ -53,7 +53,7 @@ function generateParcelas(contratoId: string, empresaId: string, clienteId: stri
 
   let currentCompetencia = new Date(dataInicio);
   
-  // Define o vencimento base (se tiver data_primeiro_vencimento, usa ela, senão pega mês seguinte + dia_vencimento)
+  // Define o vencimento base (se tiver data_primeiro_vencimento, usa ela, senÃ£o pega mÃªs seguinte + dia_vencimento)
   let baseVencimento: Date;
   if (dataPrimeiroVencimento) {
     baseVencimento = new Date(dataPrimeiroVencimento);
@@ -138,7 +138,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         .order('numero_parcela'),
     ]);
 
-    if (!contratoResult.data) return res.status(404).json({ error: 'Contrato não encontrado' });
+    if (!contratoResult.data) return res.status(404).json({ error: 'Contrato nÃ£o encontrado' });
 
     res.json({
       ...contratoResult.data,
@@ -154,12 +154,12 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
   try {
     const { empresa_id } = req.user!;
     const body = contratoSchema.parse(req.body);
-    // Tratar vázios como null
+    // Tratar vÃ¡zios como null
     if (body.vendedor_id === '') body.vendedor_id = null;
     if (body.data_fim === '') body.data_fim = null;
     if (body.numero === '') body.numero = undefined;
 
-    // Verificar se máquinas estão disponíveis
+    // Verificar se mÃ¡quinas estÃ£o disponÃ­veis
     const { data: maquinas } = await supabase
       .from('maquinas')
       .select('id, nome, status')
@@ -169,12 +169,12 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     const maquinasIndisponiveis = maquinas?.filter(m => m.status !== 'disponivel') || [];
     if (maquinasIndisponiveis.length > 0) {
       return res.status(400).json({
-        error: 'Máquinas indisponíveis',
+        error: 'MÃ¡quinas indisponÃ­veis',
         maquinas: maquinasIndisponiveis.map(m => `${m.nome} (${m.status})`),
       });
     }
 
-    // Calcular valor da comissão
+    // Calcular valor da comissÃ£o
     const valor_comissao = calculateComissao({
       tipoComissao: body.tipo_comissao,
       valorMensal: body.valor_mensal,
@@ -221,7 +221,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     }));
     await supabase.from('contrato_itens').insert(itens);
 
-    // Atualizar status das máquinas para 'locada'
+    // Atualizar status das mÃ¡quinas para 'locada'
     await supabase.from('maquinas').update({ status: 'locada' }).in('id', body.maquina_ids);
 
     // Gerar parcelas
@@ -265,7 +265,7 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
     const { status } = req.body;
 
     if (!['ativo', 'suspenso', 'encerrado'].includes(status)) {
-      return res.status(400).json({ error: 'Status inválido' });
+      return res.status(400).json({ error: 'Status invÃ¡lido' });
     }
 
     const { data: contrato } = await supabase
@@ -275,11 +275,11 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
       .eq('empresa_id', empresa_id)
       .single();
 
-    if (!contrato) return res.status(404).json({ error: 'Contrato não encontrado' });
+    if (!contrato) return res.status(404).json({ error: 'Contrato nÃ£o encontrado' });
 
     await supabase.from('contratos').update({ status }).eq('id', id);
 
-    // Se encerrado, liberar as máquinas
+    // Se encerrado, liberar as mÃ¡quinas
     if (status === 'encerrado') {
       const maquinaIds = contrato.contrato_itens.map((ci: { maquina_id: string }) => ci.maquina_id);
       await supabase.from('maquinas').update({ status: 'disponivel' }).in('id', maquinaIds);
@@ -333,7 +333,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
     const { id } = req.params;
     const body = contratoSchema.partial().parse(req.body);
 
-    // Recalcular comissão se percentual, tipo ou valor mudaram
+    // Recalcular comissÃ£o se percentual, tipo ou valor mudaram
     if (body.valor_mensal !== undefined || body.percentual_comissao !== undefined || body.tipo_comissao !== undefined || body.valor_comissao !== undefined) {
        const { data: current } = await supabase.from('contratos').select('*').eq('id', id).single();
        if (current) {
@@ -365,7 +365,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!contrato) return res.status(404).json({ error: 'Contrato não encontrado' });
+    if (!contrato) return res.status(404).json({ error: 'Contrato nÃ£o encontrado' });
 
     // Atualizar itens se fornecidos (simplificado)
     if (maquina_ids && valores_unitarios && maquina_ids.length === valores_unitarios.length) {
@@ -391,7 +391,7 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const { empresa_id } = req.user!;
     const { id } = req.params;
 
-    // Liberar as máquinas
+    // Liberar as mÃ¡quinas
     const { data: itens } = await supabase.from('contrato_itens').select('maquina_id').eq('contrato_id', id);
     if (itens && itens.length > 0) {
       const maquinaIds = itens.map((ci: any) => ci.maquina_id);

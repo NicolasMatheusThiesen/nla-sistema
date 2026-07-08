@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -8,7 +8,7 @@ const router = Router();
 const servicoSchema = z.object({
   nome: z.string().min(1),
   descricao: z.string().optional().transform(v => v === '' ? undefined : v),
-  valor_padrao: z.number().min(0).default(0),
+  valor_padrao: z.coerce.number().min(0).default(0),
   ativo: z.boolean().optional().default(true),
 });
 
@@ -33,7 +33,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     if (error) throw error;
     res.json(data);
   } catch {
-    res.status(500).json({ error: 'Erro ao listar serviços' });
+    res.status(500).json({ error: 'Erro ao listar serviÃ§os' });
   }
 });
 
@@ -51,11 +51,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Serviço não encontrado' });
+    if (!data) return res.status(404).json({ error: 'ServiÃ§o nÃ£o encontrado' });
     
     res.json(data);
   } catch {
-    res.status(500).json({ error: 'Erro ao buscar serviço' });
+    res.status(500).json({ error: 'Erro ao buscar serviÃ§o' });
   }
 });
 
@@ -75,7 +75,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     res.status(201).json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao criar serviço' });
+    res.status(500).json({ error: 'Erro ao criar serviÃ§o' });
   }
 });
 
@@ -95,11 +95,11 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Serviço não encontrado' });
+    if (!data) return res.status(404).json({ error: 'ServiÃ§o nÃ£o encontrado' });
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });
-    res.status(500).json({ error: 'Erro ao atualizar serviço' });
+    res.status(500).json({ error: 'Erro ao atualizar serviÃ§o' });
   }
 });
 
@@ -115,9 +115,9 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
       .eq('empresa_id', empresa_id);
 
     if (error) throw error;
-    res.json({ message: 'Serviço removido' });
+    res.json({ message: 'ServiÃ§o removido' });
   } catch {
-    res.status(500).json({ error: 'Erro ao remover serviço' });
+    res.status(500).json({ error: 'Erro ao remover serviÃ§o' });
   }
 });
 

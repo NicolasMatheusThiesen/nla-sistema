@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -23,7 +23,7 @@ const clienteSchema = z.object({
   bairro: z.string().optional().transform(v => v === '' ? undefined : v),
   cidade: z.string().optional().transform(v => v === '' ? undefined : v),
   estado: z.string().optional().transform(v => v === '' ? undefined : v),
-  limite_credito: z.number().min(0).default(0),
+  limite_credito: z.coerce.number().min(0).default(0),
   status_credito: z.enum(['bom', 'regular', 'bloqueado']).default('bom'),
   observacoes: z.string().optional().transform(v => v === '' ? undefined : v),
 });
@@ -66,7 +66,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       supabase.from('parcelas').select('*').eq('cliente_id', id).eq('empresa_id', empresa_id).order('data_vencimento', { ascending: false }).limit(50),
     ]);
 
-    if (!clienteResult.data) return res.status(404).json({ error: 'Cliente não encontrado' });
+    if (!clienteResult.data) return res.status(404).json({ error: 'Cliente nÃ£o encontrado' });
 
     const totalDevido = parcelasResult.data?.filter(p => p.status === 'pendente' || p.status === 'vencido').reduce((s, p) => s + p.valor, 0) || 0;
     const totalPago = parcelasResult.data?.filter(p => p.status === 'pago').reduce((s, p) => s + (p.valor_pago || p.valor), 0) || 0;
@@ -98,7 +98,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       .eq('ativo', true)
       .single();
 
-    if (existente) return res.status(409).json({ error: 'Cliente com este CPF/CNPJ já cadastrado' });
+    if (existente) return res.status(409).json({ error: 'Cliente com este CPF/CNPJ jÃ¡ cadastrado' });
 
     const { data, error } = await supabase.from('clientes').insert({ ...body, empresa_id }).select().single();
     if (error) throw error;
@@ -118,7 +118,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
 
     const { data, error } = await supabase.from('clientes').update(body).eq('id', id).eq('empresa_id', empresa_id).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Cliente não encontrado' });
+    if (!data) return res.status(404).json({ error: 'Cliente nÃ£o encontrado' });
     res.json(data);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ") });

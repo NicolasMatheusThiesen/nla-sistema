@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -10,7 +10,7 @@ const vendedorSchema = z.object({
   cpf: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   telefone: z.string().optional(),
-  percentual_comissao_padrao: z.number().min(0).max(100).default(0),
+  percentual_comissao_padrao: z.coerce.number().min(0).max(100).default(0),
   ativo: z.boolean().default(true),
 });
 
@@ -49,9 +49,9 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       .eq('empresa_id', empresa_id)
       .single();
 
-    if (error || !vendedor) return res.status(404).json({ error: 'Vendedor não encontrado' });
+    if (error || !vendedor) return res.status(404).json({ error: 'Vendedor nÃ£o encontrado' });
 
-    // Buscar comissões geradas
+    // Buscar comissÃµes geradas
     const [vendasResult, contratosResult] = await Promise.all([
       supabase
         .from('vendas')
