@@ -1,0 +1,45 @@
+# ===========================
+# NLA Sistema — .gitignore raiz
+# ===========================
+
+# ─── NUNCA enviar arquivos de segredos ────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+
+# ─── Node.js ──────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Next.js ──────────────────────────────────────────────────
+frontend/.next/
+frontend/out/
+frontend/build/
+
+# ─── TypeScript compilado ─────────────────────────────────────
+backend/dist/
+
+# ─── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Sistema Operacional ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Electron (app desktop) ───────────────────────────────────
+release/
+dist-electron/
+*.exe
+*.dmg
+*.AppImage
+
+# ─── Editor ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

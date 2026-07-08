@@ -1,0 +1,103 @@
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 25% 97%;
+    --foreground: 220 35% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 35% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 35% 10%;
+    --primary: 47 100% 50%;
+    --primary-foreground: 220 35% 10%;
+    --secondary: 220 14% 93%;
+    --secondary-foreground: 220 35% 15%;
+    --muted: 220 14% 93%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 220 14% 93%;
+    --accent-foreground: 220 35% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 88%;
+    --input: 220 13% 88%;
+    --ring: 221 83% 53%;
+    --radius: 0.625rem;
+  }
+
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+}
+
+@layer components {
+  /* KPI Card gradient variants */
+  .kpi-blue   { background: linear-gradient(135deg, hsl(47 100% 50%) 0%, hsl(47 100% 56%) 100%); color: hsl(220 35% 10%); }
+  .kpi-blue p { color: hsl(220 35% 10%); }
+  .kpi-green  { background: linear-gradient(135deg, hsl(142 71% 45%) 0%, hsl(161 94% 30%) 100%); }
+  .kpi-amber  { background: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(25 95% 53%) 100%); }
+  .kpi-red    { background: linear-gradient(135deg, hsl(0 84% 60%) 0%, hsl(330 85% 60%) 100%); }
+  .kpi-purple { background: linear-gradient(135deg, hsl(262 80% 58%) 0%, hsl(290 70% 60%) 100%); }
+
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm border border-white/50 shadow-sm;
+  }
+
+  /* Sidebar active item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium 
+           text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent 
+           transition-all duration-150 cursor-pointer;
+  }
+  .nav-item.active {
+    @apply text-foreground bg-primary shadow-lg shadow-primary/25;
+  }
+
+  /* Status badges */
+  .badge-green   { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800; }
+  .badge-yellow  { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800; }
+  .badge-red     { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800; }
+  .badge-blue    { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800; }
+  .badge-gray    { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700; }
+  .badge-purple  { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800; }
+
+  /* Shimmer loading */
+  .shimmer {
+    background: linear-gradient(90deg, hsl(220 14% 93%) 25%, hsl(220 14% 96%) 50%, hsl(220 14% 93%) 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Table styles */
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+  }
+  .data-table td {
+    @apply px-4 py-3 text-sm;
+  }
+  .data-table tr:hover td {
+    @apply bg-muted/30;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

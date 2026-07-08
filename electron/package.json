@@ -1,0 +1,103 @@
+{
+  "name": "nla-equipamentos-desktop",
+  "version": "1.0.0",
+  "description": "NLA Equipamentos — Sistema de Gestão de Equipamentos Desktop",
+  "author": {
+    "name": "NLA Locações Ltda",
+    "email": "nlalocacoes@gmail.com"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64",
+    "build:dir": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --x64 --dir",
+    "build:portable": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.nla.equipamentos",
+    "productName": "NLA Equipamentos",
+    "copyright": "Copyright © 2026 NLA Locações Ltda",
+    "forceCodeSigning": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NLA Equipamentos",
+      "installerIcon": null,
+      "uninstallerIcon": null
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "node_modules/**/*",
+      ".env"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist-ncc",
+        "to": "backend-dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../backend/templates",
+        "to": "templates",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../frontend/.next/standalone",
+        "to": "frontend-standalone",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../frontend/.next/static",
+        "to": "frontend-standalone/.next/static",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../frontend/public",
+        "to": "frontend-standalone/public",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}
+
