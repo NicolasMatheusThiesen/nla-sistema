@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { supabase } from './supabase';
-
 const getDefaultApiUrl = () => {
   if (typeof window === 'undefined') return 'http://localhost:3001';
 
@@ -22,11 +20,27 @@ export class ApiError extends Error {
   }
 }
 
-// Fetch token via Supabase Auth
-async function getToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
-}
+// Auth State
+export const authService = {
+  setSession(session: any, user: any) {
+    localStorage.setItem('auth_session', JSON.stringify({ session, user }));
+  },
+  getSession() {
+    try {
+      const stored = localStorage.getItem('auth_session');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  },
+  clearSession() {
+    localStorage.removeItem('auth_session');
+  },
+  getToken(): string | null {
+    const data = this.getSession();
+    return data?.session?.access_token || null;
+  }
+};
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -36,7 +50,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(async (config) => {
-  const token = await getToken();
+  const token = authService.getToken();
   if (token && config.headers) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }

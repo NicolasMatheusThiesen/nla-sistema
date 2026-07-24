@@ -29,6 +29,7 @@ import comprasRoutes from './routes/compras';
 import fornecedoresRoutes from './routes/fornecedores';
 import contasBancariasRoutes from './routes/contas_bancarias';
 import loggerRoute from './routes/logger';
+import authRoutes from './routes/auth';
 
 const app = express();
 
@@ -96,6 +97,7 @@ app.use('/api/compras', comprasRoutes);
 app.use('/api/fornecedores', fornecedoresRoutes);
 app.use('/api/contas-bancarias', contasBancariasRoutes);
 app.use('/api/log-error', loggerRoute);
+app.use('/api/auth', authRoutes);
 
 // ── 404 & ERROR HANDLER ────────────────────────────────────
 app.use(notFound);

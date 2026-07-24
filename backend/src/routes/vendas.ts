@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -22,6 +22,7 @@ const vendaSchema = z.object({
   numero_parcelas: z.coerce.number().int().min(1).default(1),
   data_venda: z.string(),
   observacoes: z.string().optional().transform(v => v === '' ? undefined : v),
+  conta_bancaria_id: z.string().uuid().nullish().or(z.literal('')),
   // Campos de comissÃ£o
   vendedor_id: z.string().uuid().optional().nullable().transform(v => v === '' ? null : v),
   percentual_comissao: z.coerce.number().min(0).max(100).default(0),
@@ -148,6 +149,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
       data_pagamento: body.data_venda,
       maquina_id: body.maquina_id || null,
       cliente_id: body.cliente_id,
+      conta_bancaria_id: body.conta_bancaria_id || null,
     });
 
     res.status(201).json(venda);

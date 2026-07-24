@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { api, authService } from '@/lib/api';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
@@ -21,14 +21,13 @@ const handleLogin = async () => {
   errorMsg.value = '';
   
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const data = await api.post<{ session: any; user: any }>('/api/auth/login', {
       email: email.value,
       password: password.value,
     });
-
-    if (error) throw error;
     
     if (data.session) {
+      authService.setSession(data.session, data.user);
       router.push('/');
     }
   } catch (err: any) {

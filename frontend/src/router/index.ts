@@ -1,7 +1,7 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../layouts/AppLayout.vue'
 import LoginView from '../views/LoginView.vue'
-import { supabase } from '../lib/supabase'
+import { authService } from '../lib/api'
 import DashboardView from '../views/DashboardView.vue'
 import ClientesView from '../views/ClientesView.vue'
 import MaquinasView from '../views/MaquinasView.vue'
@@ -133,7 +133,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const session = authService.getSession();
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
 
   if (requiresAuth && !session) {

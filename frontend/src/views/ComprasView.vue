@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useCompras, useCreateCompra, useUpdateCompra, useFornecedores, useMateriais, type Compra } from '@/composables/useApi';
+import { useCompras, useCreateCompra, useUpdateCompra, useFornecedores, useMateriais, useContasBancarias, type Compra } from '@/composables/useApi';
 
 const search = ref('');
 const finalidadeFilter = ref('');
@@ -14,6 +14,7 @@ const editingId = ref<string | null>(null);
 const { data: compras, isLoading } = useCompras();
 const { data: fornecedores } = useFornecedores();
 const { data: materiais } = useMateriais();
+const { data: contasBancarias } = useContasBancarias();
 
 const createCompra = useCreateCompra();
 const updateCompra = useUpdateCompra();
@@ -30,6 +31,12 @@ const materialOptions = computed(() => {
   return options;
 });
 
+const contaOptions = computed(() => {
+  const options = (contasBancarias.value || []).map(c => ({ value: c.id, label: `${c.nome} ${c.banco ? '- '+c.banco : ''}` }));
+  options.unshift({ value: '', label: 'Nenhuma / Aguardando' });
+  return options;
+});
+
 const form = ref<Partial<Compra>>({
   descricao: '',
   fornecedor_id: '',
@@ -40,7 +47,8 @@ const form = ref<Partial<Compra>>({
   finalidade: 'consumo',
   data_compra: new Date().toISOString().split('T')[0],
   nota_fiscal: '',
-  observacoes: ''
+  observacoes: '',
+  conta_bancaria_id: ''
 });
 
 // Calcula valor total automaticamente
@@ -62,7 +70,8 @@ const resetForm = () => {
     finalidade: 'consumo',
     data_compra: new Date().toISOString().split('T')[0],
     nota_fiscal: '',
-    observacoes: ''
+    observacoes: '',
+    conta_bancaria_id: ''
   };
 };
 
@@ -249,6 +258,11 @@ const formatDate = (dateString?: string) => {
         <Input v-model="form.valor_total" label="Valor Total (R$)" type="number" />
         <Input v-model="form.data_compra" label="Data da Compra" type="date" />
         <Input v-model="form.nota_fiscal" label="Nota Fiscal (Opcional)" />
+        <Select 
+          v-model="form.conta_bancaria_id"
+          label="Conta Bancária (Pagamento)" 
+          :options="contaOptions" 
+        />
         
         <div class="col-span-2">
           <Input v-model="form.observacoes" label="Observações" />

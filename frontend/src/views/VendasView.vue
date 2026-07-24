@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useVendas, useCreateVenda, useUpdateVenda, useClientes, useMaquinas, type Venda } from '@/composables/useApi';
+import { useVendas, useCreateVenda, useUpdateVenda, useClientes, useMaquinas, useContasBancarias, type Venda } from '@/composables/useApi';
 
 const search = ref('');
 const isModalOpen = ref(false);
@@ -13,6 +13,7 @@ const editingId = ref<string | null>(null);
 const { data: vendas, isLoading } = useVendas();
 const { data: clientes } = useClientes();
 const { data: maquinas } = useMaquinas();
+const { data: contasBancarias } = useContasBancarias();
 const createVenda = useCreateVenda();
 const updateVenda = useUpdateVenda();
 
@@ -23,6 +24,12 @@ const clienteOptions = computed(() => {
 const maquinaOptions = computed(() => {
   const options = (maquinas.value || []).map(m => ({ value: m.id, label: m.nome }));
   options.unshift({ value: '', label: 'Venda de Produtos Apenas' });
+  return options;
+});
+
+const contaOptions = computed(() => {
+  const options = (contasBancarias.value || []).map(c => ({ value: c.id, label: `${c.nome} ${c.banco ? '- '+c.banco : ''}` }));
+  options.unshift({ value: '', label: 'Nenhuma / Aguardando' });
   return options;
 });
 
@@ -38,7 +45,8 @@ const form = ref<Partial<Venda>>({
   percentual_comissao: 0,
   valor_comissao: 0,
   observacoes: '',
-  tipo_comissao: 'percentual'
+  tipo_comissao: 'percentual',
+  conta_bancaria_id: ''
 });
 
 const resetForm = () => {
@@ -55,7 +63,8 @@ const resetForm = () => {
     percentual_comissao: 0,
     valor_comissao: 0,
     observacoes: '',
-    tipo_comissao: 'percentual'
+    tipo_comissao: 'percentual',
+    conta_bancaria_id: ''
   };
 };
 
@@ -200,6 +209,11 @@ const formatDate = (dateString: string) => {
           v-model="form.forma_pagamento"
           label="Forma de Pagamento" 
           :options="[{value: 'avista', label: 'À Vista'}, {value: 'parcelado', label: 'A Prazo (Parcelado)'}, {value: 'financiado', label: 'Financiamento'}]" 
+        />
+        <Select 
+          v-model="form.conta_bancaria_id"
+          label="Conta Bancária (Recebimento)" 
+          :options="contaOptions" 
         />
         <Input v-model="form.numero_parcelas" label="Número de Parcelas" type="number" />
         <Input v-model="form.data_venda" label="Data da Venda" type="date" />

@@ -130,6 +130,10 @@ const openNovaOS = () => {
           label="Selecione a Máquina" 
           :options="[{value: '1', label: 'Empilhadeira Yale 2.5T'}]" 
         />
+        <Select 
+          label="Conta Bancária (Recebimento)" 
+          :options="[{value: '', label: 'Nenhuma'}, {value: '1', label: 'Caixa Interno'}]" 
+        />
 
         <Input label="Data de Abertura" type="date" />
         <Input label="Data Prevista" type="date" />

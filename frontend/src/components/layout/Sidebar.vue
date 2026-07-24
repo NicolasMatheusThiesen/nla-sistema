@@ -1,14 +1,14 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { supabase } from '@/lib/supabase';
+import { authService } from '@/lib/api';
 
 const isMobileMenuOpen = ref(false);
 const route = useRoute();
 const router = useRouter();
 
 const handleLogout = async () => {
-  await supabase.auth.signOut();
+  authService.clearSession();
   router.push('/login');
 };
 

@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -16,6 +16,7 @@ const compraSchema = z.object({
   data_compra: z.string(),
   nota_fiscal: z.string().nullish().or(z.literal('')),
   observacoes: z.string().nullish().or(z.literal('')),
+  conta_bancaria_id: z.string().uuid().nullish().or(z.literal('')),
 });
 
 // GET /api/compras
@@ -62,6 +63,7 @@ router.post('/', authenticate, requireRole('admin', 'financeiro', 'operacional')
         data_competencia: body.data_compra,
         status: 'pago',
         observacoes: body.observacoes,
+        conta_bancaria_id: body.conta_bancaria_id || null,
       })
       .select('id')
       .single();

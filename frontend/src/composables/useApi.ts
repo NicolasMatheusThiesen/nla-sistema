@@ -84,6 +84,7 @@ export interface Venda {
   percentual_comissao: number;
   tipo_comissao?: 'percentual' | 'fixo';
   valor_comissao: number;
+  conta_bancaria_id?: string;
 }
 
 export interface Fornecedor {
@@ -114,6 +115,7 @@ export interface Compra {
   data_compra: string;
   nota_fiscal?: string;
   observacoes?: string;
+  conta_bancaria_id?: string;
 }
 
 export interface Material {
@@ -188,6 +190,7 @@ export interface Lancamento {
   fornecedor_id?: string;
   clientes?: { razao_social: string };
   fornecedores?: { razao_social: string };
+  conta_bancaria_id?: string;
 }
 
 export interface LancamentosResponse {
@@ -223,6 +226,7 @@ export interface OrdemServico {
   descricao_problema: string;
   servicos_executados?: string;
   valor_total: number;
+  conta_bancaria_id?: string;
 }
 
 import { unref } from 'vue';

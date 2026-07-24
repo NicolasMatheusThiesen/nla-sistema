@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -22,6 +22,7 @@ const lancamentoSchema = z.object({
   observacoes: z.string().nullish().or(z.literal('')),
   recorrente: z.boolean().default(false),
   numero_parcelas: z.coerce.number().int().min(1).default(1),
+  conta_bancaria_id: z.string().uuid().nullish().or(z.literal('')),
 });
 
 // GET /api/lancamentos
@@ -121,6 +122,7 @@ router.post('/', authenticate, requireRole('admin', 'financeiro'), async (req: A
     if (body.fornecedor_id === '') body.fornecedor_id = null;
     if (body.maquina_id === '') body.maquina_id = null;
     if (body.contrato_id === '') body.contrato_id = null;
+    if (body.conta_bancaria_id === '') body.conta_bancaria_id = null;
 
     const { numero_parcelas, ...lancamentoData } = body;
 
@@ -170,6 +172,7 @@ router.put('/:id', authenticate, requireRole('admin', 'financeiro'), async (req:
     if (body.fornecedor_id === '') body.fornecedor_id = null;
     if (body.maquina_id === '') body.maquina_id = null;
     if (body.contrato_id === '') body.contrato_id = null;
+    if (body.conta_bancaria_id === '') body.conta_bancaria_id = null;
 
     delete (body as any).numero_parcelas;
 

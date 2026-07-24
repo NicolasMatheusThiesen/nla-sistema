@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -31,6 +31,7 @@ const osSchema = z.object({
     valor_unitario: z.coerce.number().min(0),
     valor_total: z.coerce.number().min(0),
   })).default([]),
+  conta_bancaria_id: z.string().uuid().nullish().or(z.literal('')),
 });
 
 // GET /api/ordens-servico
@@ -147,6 +148,7 @@ router.post('/', authenticate, requireRole('admin', 'operacional', 'financeiro')
           status: 'pendente',
           cliente_id: body.cliente_id,
           maquina_id: body.maquina_id || null,
+          conta_bancaria_id: body.conta_bancaria_id || null,
         })
         .select('id')
         .single();
@@ -212,6 +214,7 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional', 'financeiro
           status: 'pendente',
           cliente_id: current.cliente_id,
           maquina_id: current.maquina_id || null,
+          conta_bancaria_id: body.conta_bancaria_id || null,
         }).select('id').single();
         if (lanc) await supabase.from('ordens_servico').update({ lancamento_id: lanc.id }).eq('id', id);
       }
