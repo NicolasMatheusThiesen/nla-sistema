@@ -121,6 +121,11 @@ const router = createRouter({
           name: 'relatorios',
           component: RelatoriosView,
         },
+        {
+          path: 'contas-bancarias',
+          name: 'contas-bancarias',
+          component: ContasBancariasView,
+        },
         // Catch-all route for other dashboard pages
         {
           path: ':pathMatch(.*)*',
