@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
@@ -161,14 +161,12 @@ const handleDelete = async (id: string) => {
            </label>
         </div>
       </div>
-      <template #footer>
-        <div class="flex justify-end gap-3 w-full">
-          <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
-          <Button variant="primary" @click="saveConta" :disabled="createConta.isPending.value || updateConta.isPending.value">
-            {{ (createConta.isPending.value || updateConta.isPending.value) ? 'Salvando...' : 'Salvar Conta' }}
-          </Button>
-        </div>
-      </template>
+      <div class="modal-actions">
+        <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
+        <Button variant="primary" @click="saveConta" :disabled="createConta.isPending.value || updateConta.isPending.value">
+          {{ (createConta.isPending.value || updateConta.isPending.value) ? 'Salvando...' : 'Salvar Conta' }}
+        </Button>
+      </div>
     </Modal>
   </div>
 </template>
@@ -178,4 +176,23 @@ const handleDelete = async (id: string) => {
 .text-danger { color: #dc2626; }
 [data-theme='dark'] .text-success { color: #4ade80; }
 [data-theme='dark'] .text-danger { color: #f87171; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.col-span-2 {
+  grid-column: span 2;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--c-border);
+}
 </style>
