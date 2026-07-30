@@ -667,10 +667,7 @@ export interface ContaBancaria {
 export function useContasBancarias() {
   return useQuery({
     queryKey: ['contas_bancarias'],
-    queryFn: async () => {
-      const { data } = await api.get<ContaBancaria[]>('/api/contas-bancarias');
-      return data;
-    },
+    queryFn: () => api.get<ContaBancaria[]>('/api/contas-bancarias'),
   });
 }
 
