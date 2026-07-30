@@ -75,7 +75,7 @@ const saveConta = async () => {
 };
 
 const handleDelete = async (id: string) => {
-  if (confirm('Deseja realmente excluir esta conta bancria?')) {
+  if (confirm('Deseja realmente excluir esta conta bancária?')) {
     try {
       await deleteConta.mutateAsync(id);
     } catch (e: any) {
@@ -89,8 +89,8 @@ const handleDelete = async (id: string) => {
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Contas Banc�rias</h1>
-        <p class="page-subtitle">Gerencie as contas banc�rias e carteiras da sua empresa</p>
+        <h1 class="page-title">Contas Bancárias</h1>
+        <p class="page-subtitle">Gerencie as contas bancárias e carteiras da sua empresa</p>
       </div>
       <Button variant="primary" @click="openNovaConta">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -112,7 +112,7 @@ const handleDelete = async (id: string) => {
       </div>
       <div v-else-if="filteredContas.length === 0" class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-        <p>Nenhuma conta banc�ria encontrada.</p>
+        <p>Nenhuma conta bancária encontrada.</p>
       </div>
       <table v-else class="data-table">
         <thead>
@@ -122,7 +122,7 @@ const handleDelete = async (id: string) => {
             <th>Ag./Conta</th>
             <th>Saldo Atual</th>
             <th>Status</th>
-            <th class="text-right">A��es</th>
+            <th class="text-right">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -147,13 +147,13 @@ const handleDelete = async (id: string) => {
       </table>
     </div>
 
-    <Modal :open="isModalOpen" @close="isModalOpen = false" :title="editingId ? 'Editar Conta' : 'Nova Conta Banc�ria'">
+    <Modal :open="isModalOpen" @close="isModalOpen = false" :title="editingId ? 'Editar Conta' : 'Nova Conta Bancária'">
       <div class="form-grid">
         <div class="col-span-2">
-          <Input v-model="form.nome" label="Nome da Conta (Ex: Ita� Empresa, Caixinha)" required />
+          <Input v-model="form.nome" label="Nome da Conta (Ex: Itaú Empresa, Caixinha)" required />
         </div>
         <Input v-model="form.banco" label="Banco" />
-        <Input v-model="form.agencia" label="Ag�ncia" />
+        <Input v-model="form.agencia" label="Agência" />
         <Input v-model="form.conta" label="Conta" />
         <Input v-model="form.saldo_inicial" label="Saldo Inicial (R$)" type="number" :disabled="!!editingId" />
         <div class="col-span-2 flex items-center mt-2">
