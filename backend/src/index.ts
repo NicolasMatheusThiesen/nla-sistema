@@ -50,6 +50,9 @@ app.use(cors({
     const localhostRegex = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/;
     if (localhostRegex.test(origin)) return callback(null, true);
 
+    // Allow Vercel preview domains dynamically
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+
     // Deny others
     return callback(null, false);
   },

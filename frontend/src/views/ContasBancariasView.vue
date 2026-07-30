@@ -68,13 +68,14 @@ const saveConta = async () => {
       await createConta.mutateAsync(data);
     }
     isModalOpen.value = false;
-  } catch (error) {
-    alert('Erro ao salvar conta banc�ria');
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.error || error.message;
+    alert('Erro ao salvar conta bancária: ' + JSON.stringify(errorMsg));
   }
 };
 
 const handleDelete = async (id: string) => {
-  if (confirm('Deseja realmente excluir esta conta banc�ria?')) {
+  if (confirm('Deseja realmente excluir esta conta bancria?')) {
     try {
       await deleteConta.mutateAsync(id);
     } catch (e: any) {

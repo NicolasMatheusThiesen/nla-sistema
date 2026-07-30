@@ -3,11 +3,14 @@ const getDefaultApiUrl = () => {
   if (typeof window === 'undefined') return 'http://localhost:3001';
 
   const hostname = window.location.hostname;
-  const normalizedHostname = hostname === '0.0.0.0' || hostname === '[::]' || hostname === '::1'
-    ? 'localhost'
-    : hostname;
+  const isLocal = hostname === '0.0.0.0' || hostname === '[::]' || hostname === '::1' || hostname === 'localhost' || hostname.startsWith('127.');
+  
+  if (isLocal) {
+    return 'http://localhost:3001';
+  }
 
-  return `${window.location.protocol}//${normalizedHostname}:3001`;
+  // Fallback seguro de produção caso VITE_API_URL não esteja definido
+  return 'https://nla-backend.onrender.com';
 };
 
 const API_URL = import.meta.env.VITE_API_URL || getDefaultApiUrl();

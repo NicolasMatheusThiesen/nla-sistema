@@ -1,9 +1,9 @@
-﻿import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -16,12 +16,13 @@ async function syncProfiles() {
   for (const user of users.users) {
     const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
     if (!profile) {
-      console.log(`Criando perfil para ${user.email}...`);
+      const email = user.email || 'sem-email@local.dev';
+      console.log(`Criando perfil para ${email}...`);
       await supabase.from('profiles').insert({
         user_id: user.id,
         empresa_id: empresaId,
-        nome: user.email.split('@')[0],
-        email: user.email,
+        nome: email.split('@')[0],
+        email: email,
         role: 'admin',
         ativo: true
       });
