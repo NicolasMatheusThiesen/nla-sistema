@@ -84,9 +84,9 @@ CREATE POLICY "emprestimo_parcelas_tenant_isolation" ON emprestimo_parcelas
 DROP TRIGGER IF EXISTS trg_emprestimos_updated ON emprestimos;
 CREATE TRIGGER trg_emprestimos_updated
   BEFORE UPDATE ON emprestimos
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS trg_emprestimo_parcelas_updated ON emprestimo_parcelas;
 CREATE TRIGGER trg_emprestimo_parcelas_updated
   BEFORE UPDATE ON emprestimo_parcelas
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
