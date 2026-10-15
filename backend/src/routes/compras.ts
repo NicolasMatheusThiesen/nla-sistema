@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -17,6 +17,8 @@ const compraSchema = z.object({
   nota_fiscal: z.string().nullish().or(z.literal('')),
   observacoes: z.string().nullish().or(z.literal('')),
   conta_bancaria_id: z.string().uuid().nullish().or(z.literal('')),
+  numero_parcelas: z.coerce.number().int().min(1).default(1),
+  forma_pagamento: z.string().nullish().or(z.literal('')),
 });
 
 // GET /api/compras
@@ -50,25 +52,11 @@ router.post('/', authenticate, requireRole('admin', 'financeiro', 'operacional')
 
     if (body.material_id === '') body.material_id = null;
     if (body.fornecedor_id === '') body.fornecedor_id = null;
+    if (body.conta_bancaria_id === '') body.conta_bancaria_id = null;
 
-    // Criar lanÃ§amento de despesa no financeiro
-    const { data: lanc, error: lancError } = await supabase
-      .from('lancamentos')
-      .insert({
-        empresa_id,
-        tipo: 'despesa',
-        descricao: `Compra: ${body.descricao}`,
-        fornecedor_id: body.fornecedor_id,
-        valor: body.valor_total,
-        data_competencia: body.data_compra,
-        status: 'pago',
-        observacoes: body.observacoes,
-        conta_bancaria_id: body.conta_bancaria_id || null,
-      })
-      .select('id')
-      .single();
-
-    if (lancError || !lanc) throw lancError;
+    const parcelasCount = body.numero_parcelas || 1;
+    const valorParcelaBase = Math.floor((body.valor_total / parcelasCount) * 100) / 100;
+    const diferencaCentavos = Math.round((body.valor_total - (valorParcelaBase * parcelasCount)) * 100) / 100;
 
     // Criar registro de compra
     const { data: compra, error: compraError } = await supabase
@@ -83,14 +71,62 @@ router.post('/', authenticate, requireRole('admin', 'financeiro', 'operacional')
         valor_total: body.valor_total,
         finalidade: body.finalidade,
         data_compra: body.data_compra,
-        nota_fiscal: body.nota_fiscal,
-        observacoes: body.observacoes,
-        lancamento_id: lanc.id,
+        nota_fiscal: body.nota_fiscal || null,
+        observacoes: body.observacoes || null,
+        numero_parcelas: parcelasCount,
+        forma_pagamento: body.forma_pagamento || (parcelasCount > 1 ? 'parcelado' : 'a_vista'),
       })
       .select('*, materiais(nome)')
       .single();
 
     if (compraError || !compra) throw compraError;
+
+    // Gerar lancamentos de despesa (1 ou N parcelas)
+    const baseDate = new Date(body.data_compra + 'T12:00:00');
+    const lancamentosRecords = [];
+
+    for (let i = 1; i <= parcelasCount; i++) {
+      const dataVenc = new Date(baseDate);
+      if (i > 1) {
+        dataVenc.setMonth(dataVenc.getMonth() + (i - 1));
+      }
+      const dataVencStr = dataVenc.toISOString().split('T')[0];
+      const valorFinalParcela = (i === parcelasCount) ? Number((valorParcelaBase + diferencaCentavos).toFixed(2)) : valorParcelaBase;
+
+      lancamentosRecords.push({
+        empresa_id,
+        tipo: 'despesa',
+        descricao: parcelasCount > 1 ? `Compra: ${body.descricao} (${i}/${parcelasCount})` : `Compra: ${body.descricao}`,
+        fornecedor_id: body.fornecedor_id,
+        valor: valorFinalParcela,
+        data_competencia: body.data_compra,
+        data_vencimento: dataVencStr,
+        status: (parcelasCount === 1) ? 'pago' : 'pendente', // À vista assume pago; parcelado cria parcelas pendentes
+        data_pagamento: (parcelasCount === 1) ? body.data_compra : null,
+        conta_bancaria_id: body.conta_bancaria_id || null,
+        forma_pagamento: body.forma_pagamento || null,
+        compra_id: compra.id,
+        numero_parcela: i,
+        total_parcelas: parcelasCount,
+        observacoes: body.observacoes || null,
+      });
+    }
+
+    const { data: createdLancamentos, error: lancError } = await supabase
+      .from('lancamentos')
+      .insert(lancamentosRecords)
+      .select('id');
+
+    if (lancError) throw lancError;
+
+    // Vincula o primeiro lancamento_id à compra para manter compatibilidade
+    if (createdLancamentos && createdLancamentos.length > 0) {
+      await supabase
+        .from('compras')
+        .update({ lancamento_id: createdLancamentos[0].id })
+        .eq('id', compra.id);
+      compra.lancamento_id = createdLancamentos[0].id;
+    }
 
     // Se for para revenda, incrementar estoque do material
     if (body.finalidade === 'revenda' && body.material_id) {
@@ -102,10 +138,50 @@ router.post('/', authenticate, requireRole('admin', 'financeiro', 'operacional')
       }
     }
 
-    res.status(201).json(compra);
+    res.status(201).json({ ...compra, parcelas_geradas: parcelasCount });
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') });
     res.status(500).json({ error: 'Erro ao registrar compra' });
+  }
+});
+
+// PUT /api/compras/:id
+router.put('/:id', authenticate, requireRole('admin', 'financeiro', 'operacional'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { empresa_id } = req.user!;
+    const { id } = req.params;
+    const body = compraSchema.partial().parse(req.body);
+
+    if (body.material_id === '') body.material_id = null;
+    if (body.fornecedor_id === '') body.fornecedor_id = null;
+    if (body.conta_bancaria_id === '') body.conta_bancaria_id = null;
+
+    const { data: compra, error } = await supabase
+      .from('compras')
+      .update(body)
+      .eq('id', id)
+      .eq('empresa_id', empresa_id)
+      .select('*, materiais(nome)')
+      .single();
+
+    if (error) throw error;
+    if (!compra) return res.status(404).json({ error: 'Compra não encontrada' });
+
+    // Atualiza lançamentos associados se houver alteração de descrição ou observações
+    if (body.descricao || body.fornecedor_id) {
+      await supabase
+        .from('lancamentos')
+        .update({
+          fornecedor_id: body.fornecedor_id,
+        })
+        .eq('compra_id', id)
+        .eq('empresa_id', empresa_id);
+    }
+
+    res.json(compra);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') });
+    res.status(500).json({ error: 'Erro ao atualizar compra' });
   }
 });
 
@@ -114,15 +190,20 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
   try {
     const { empresa_id } = req.user!;
     const { id } = req.params;
-    
-    // Cancelar lanÃ§amento vinculado
+
+    // Localizar compra e lançamentos vinculados
     const { data: compra } = await supabase.from('compras').select('lancamento_id').eq('id', id).single();
+
+    // Exclui todos os lançamentos vinculados à compra
+    await supabase.from('lancamentos').delete().eq('compra_id', id).eq('empresa_id', empresa_id);
     if (compra?.lancamento_id) {
-      await supabase.from('lancamentos').update({ status: 'cancelado' }).eq('id', compra.lancamento_id);
+      await supabase.from('lancamentos').delete().eq('id', compra.lancamento_id).eq('empresa_id', empresa_id);
     }
-    
-    await supabase.from('compras').delete().eq('id', id).eq('empresa_id', empresa_id);
-    res.json({ message: 'Compra removida' });
+
+    const { error } = await supabase.from('compras').delete().eq('id', id).eq('empresa_id', empresa_id);
+    if (error) throw error;
+
+    res.json({ message: 'Compra e parcelas financeiras removidas com sucesso' });
   } catch {
     res.status(500).json({ error: 'Erro ao remover compra' });
   }

@@ -63,8 +63,15 @@ apiClient.interceptors.request.use(async (config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.error || error.message || 'Erro de conexão com a API';
     const status = error.response?.status || 0;
+    const message = error.response?.data?.error || error.message || 'Erro de conexão com a API';
+
+    // Se o token estiver expirado ou inválido (401), limpa sessão e redireciona com segurança
+    if (status === 401 && typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      authService.clearSession();
+      window.location.href = '/login?expired=1';
+    }
+
     return Promise.reject(new ApiError(message, status));
   }
 );

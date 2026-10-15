@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useLancamentos, useCreateLancamento, useUpdateLancamento, useClientes, useFornecedores, useContasBancarias, type Lancamento } from '@/composables/useApi';
+import { useLancamentos, useCreateLancamento, useUpdateLancamento, useDeleteLancamento, useClientes, useFornecedores, useContasBancarias, type Lancamento } from '@/composables/useApi';
 
 const tipoFilter = ref('');
 const isModalOpen = ref(false);
@@ -16,6 +16,7 @@ const { data: fornecedores } = useFornecedores();
 const { data: contasBancarias } = useContasBancarias();
 const createLancamento = useCreateLancamento();
 const updateLancamento = useUpdateLancamento();
+const deleteLancamento = useDeleteLancamento();
 
 const clienteOptions = computed(() => {
   const options = (clientes.value || []).map(c => ({ value: c.id, label: c.razao_social }));
@@ -35,7 +36,7 @@ const contaOptions = computed(() => {
   return options;
 });
 
-const form = ref<Partial<Lancamento>>({
+const form = ref<Partial<Lancamento> & { numero_parcelas?: number }>({
   tipo: 'receita',
   status: 'pendente',
   descricao: '',
@@ -45,7 +46,8 @@ const form = ref<Partial<Lancamento>>({
   cliente_id: '',
   fornecedor_id: '',
   conta_bancaria_id: '',
-  data_pagamento: ''
+  data_pagamento: '',
+  numero_parcelas: 1
 });
 
 const resetForm = () => {
@@ -60,7 +62,8 @@ const resetForm = () => {
     cliente_id: '',
     fornecedor_id: '',
     conta_bancaria_id: '',
-    data_pagamento: ''
+    data_pagamento: '',
+    numero_parcelas: 1
   };
 };
 
@@ -75,9 +78,18 @@ const openEdit = (item: Lancamento) => {
     ...item,
     data_competencia: item.data_competencia?.split('T')[0],
     data_vencimento: item.data_vencimento?.split('T')[0],
-    data_pagamento: (item as any).data_pagamento?.split('T')[0] || ''
+    data_pagamento: (item as any).data_pagamento?.split('T')[0] || '',
+    numero_parcelas: 1
   };
   isModalOpen.value = true;
+};
+
+const handleDelete = (lancamento: Lancamento) => {
+  if (confirm(`Tem certeza que deseja excluir o lançamento "${lancamento.descricao}" no valor de ${formatMoney(lancamento.valor)}?`)) {
+    deleteLancamento.mutate(lancamento.id, {
+      onError: (err: any) => alert("Erro ao excluir lançamento: " + (err?.response?.data?.error || err.message))
+    });
+  }
 };
 
 const submitLancamento = async () => {
@@ -91,6 +103,7 @@ const submitLancamento = async () => {
   if (!payload.fornecedor_id) delete payload.fornecedor_id;
   if (!payload.conta_bancaria_id) delete payload.conta_bancaria_id;
   if (!payload.data_pagamento) delete payload.data_pagamento;
+  if (editingId.value) delete payload.numero_parcelas;
 
   if (editingId.value) {
     updateLancamento.mutate({ id: editingId.value, data: payload }, {
@@ -198,6 +211,7 @@ const formatDate = (dateString: string) => {
             </td>
             <td class="text-right actions-cell">
               <Button variant="ghost" size="sm" @click="openEdit(lancamento)">Editar</Button>
+              <Button variant="ghost" size="sm" class="btn-delete" @click="handleDelete(lancamento)" :disabled="deleteLancamento.isPending.value">Excluir</Button>
             </td>
           </tr>
         </tbody>
@@ -215,7 +229,7 @@ const formatDate = (dateString: string) => {
         <Select 
           v-model="form.status"
           label="Status" 
-          :options="[{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago / Recebido'}, {value: 'atrasado', label: 'Atrasado'}]" 
+          :options="[{value: 'pendente', label: 'Pendente'}, {value: 'pago', label: 'Pago / Recebido'}, {value: 'vencido', label: 'Vencido / Atrasado'}]"
         />
         
         <div class="col-span-2">
@@ -234,12 +248,13 @@ const formatDate = (dateString: string) => {
         />
         
         <Select 
-            v-model="form.conta_bancaria_id"
-            label="Conta Bancária" 
-            :options="contaOptions" 
-          />
-          <Input v-model="form.valor" label="Valor (R$)" type="number" />
-          <Input v-model="form.data_competencia" label="Data de Competência" type="date" />
+          v-model="form.conta_bancaria_id"
+          label="Conta Bancária"
+          :options="contaOptions"
+        />
+        <Input v-model="form.valor" label="Valor (R$)" type="number" />
+        <Input v-if="!editingId" v-model="form.numero_parcelas" label="Nº de Parcelas (1 = À vista)" type="number" min="1" max="60" />
+        <Input v-model="form.data_competencia" label="Data de Competência" type="date" />
         <Input v-model="form.data_vencimento" label="Data de Vencimento" type="date" />
         <Input v-model="form.data_pagamento" label="Data de Pagamento (Opcional)" type="date" />
       </div>
@@ -365,6 +380,11 @@ const formatDate = (dateString: string) => {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+
+.btn-delete:hover {
+  color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 .badge {

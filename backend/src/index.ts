@@ -28,6 +28,7 @@ import ordensServicoRoutes from './routes/ordens_servico';
 import comprasRoutes from './routes/compras';
 import fornecedoresRoutes from './routes/fornecedores';
 import contasBancariasRoutes from './routes/contas_bancarias';
+import emprestimosRoutes from './routes/emprestimos';
 import loggerRoute from './routes/logger';
 import authRoutes from './routes/auth';
 
@@ -37,6 +38,10 @@ const app = express();
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: false,
+  xContentTypeOptions: true,
+  xFrameOptions: { action: 'deny' },
+  xDnsPrefetchControl: { allow: false },
+  hsts: { maxAge: 31536000, includeSubDomains: true },
 }));
 app.use(cors({
   origin: (origin, callback) => {
@@ -49,9 +54,6 @@ app.use(cors({
     // Allow common local development hosts and any port
     const localhostRegex = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/;
     if (localhostRegex.test(origin)) return callback(null, true);
-
-    // Allow Vercel preview domains dynamically
-    if (origin.endsWith('.vercel.app')) return callback(null, true);
 
     // Deny others
     return callback(null, false);
@@ -99,6 +101,7 @@ app.use('/api/ordens-servico', ordensServicoRoutes);
 app.use('/api/compras', comprasRoutes);
 app.use('/api/fornecedores', fornecedoresRoutes);
 app.use('/api/contas-bancarias', contasBancariasRoutes);
+app.use('/api/emprestimos', emprestimosRoutes);
 app.use('/api/log-error', loggerRoute);
 app.use('/api/auth', authRoutes);
 

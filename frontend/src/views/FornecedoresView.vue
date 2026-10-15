@@ -14,7 +14,7 @@ const { data: fornecedores, isLoading } = useFornecedores();
 const createFornecedor = useCreateFornecedor();
 const updateFornecedor = useUpdateFornecedor();
 
-const form = ref<Partial<Fornecedor>>({
+const form = ref<Partial<Omit<Fornecedor, 'ativo'>> & { ativo: string }>({
   tipo_pessoa: 'PJ',
   cpf_cnpj: '',
   razao_social: '',
@@ -58,7 +58,7 @@ const submitFornecedor = async () => {
     return;
   }
 
-  const data = { ...form.value, ativo: form.value.ativo === 'true' };
+  const data: Partial<Fornecedor> = { ...form.value, ativo: form.value.ativo === 'true' };
 
   if (editingId.value) {
     updateFornecedor.mutate({ id: editingId.value, data }, {

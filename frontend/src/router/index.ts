@@ -21,6 +21,7 @@ import ServicosView from '../views/ServicosView.vue'
 import TiposEquipamentoView from '../views/TiposEquipamentoView.vue'
 import NfeView from '../views/NfeView.vue'
 import ContasBancariasView from '../views/ContasBancariasView.vue'
+import EmprestimosView from '../views/EmprestimosView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -125,6 +126,11 @@ const router = createRouter({
           path: 'contas-bancarias',
           name: 'contas-bancarias',
           component: ContasBancariasView,
+        },
+        {
+          path: 'emprestimos',
+          name: 'emprestimos',
+          component: EmprestimosView,
         },
         // Catch-all route for other dashboard pages
         {

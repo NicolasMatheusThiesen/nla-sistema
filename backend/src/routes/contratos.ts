@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticate, AuthRequest, requireRole } from '../middleware/auth';
 import { supabase } from '../config/supabase';
@@ -24,7 +24,8 @@ const contratoSchema = z.object({
   observacoes: z.string().nullish().or(z.literal('')),
   maquina_ids: z.array(z.string().uuid()).min(1),
   valores_unitarios: z.array(z.coerce.number().positive()),
-  // Campos de comissÃ£o
+  ignorar_maquinas_locadas: z.boolean().default(false),
+  // Campos de comissão
   vendedor_id: z.string().uuid().nullish().or(z.literal('')),
   percentual_comissao: z.coerce.number().min(0).max(100).default(0),
   tipo_comissao: z.enum(['percentual', 'fixo']).default('percentual'),
@@ -159,19 +160,37 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     if (body.data_fim === '') body.data_fim = null;
     if (body.numero === '') body.numero = undefined;
 
-    // Verificar se mÃ¡quinas estÃ£o disponÃ­veis
-    const { data: maquinas } = await supabase
+    if (new Set(body.maquina_ids).size !== body.maquina_ids.length || body.valores_unitarios.length !== body.maquina_ids.length) {
+      return res.status(400).json({ error: 'A lista de máquinas e seus valores unitários é inválida' });
+    }
+
+    // Validate machine ownership and availability on the server, not only in the form.
+    const { data: maquinas, error: maquinasError } = await supabase
       .from('maquinas')
       .select('id, nome, status')
       .in('id', body.maquina_ids)
       .eq('empresa_id', empresa_id);
+    if (maquinasError) throw maquinasError;
+    if ((maquinas || []).length !== body.maquina_ids.length) {
+      return res.status(400).json({ error: 'Uma ou mais máquinas não foram encontradas nesta empresa' });
+    }
 
-    const maquinasIndisponiveis = maquinas?.filter(m => m.status !== 'disponivel') || [];
-    if (maquinasIndisponiveis.length > 0) {
+    const maquinasPorId = new Map((maquinas || []).map(maquina => [maquina.id, maquina]));
+    const maquinasIndisponiveis = body.maquina_ids
+      .map(machineId => maquinasPorId.get(machineId)!)
+      .filter(maquina => maquina.status !== 'disponivel');
+    const maquinasNaoLocadas = maquinasIndisponiveis.filter(maquina => maquina.status !== 'locada');
+    if (maquinasNaoLocadas.length > 0 || (maquinasIndisponiveis.length > 0 && !body.ignorar_maquinas_locadas)) {
       return res.status(400).json({
-        error: 'MÃ¡quinas indisponÃ­veis',
-        maquinas: maquinasIndisponiveis.map(m => `${m.nome} (${m.status})`),
+        error: 'Máquinas indisponíveis',
+        maquinas: (maquinasNaoLocadas.length > 0 ? maquinasNaoLocadas : maquinasIndisponiveis).map(m => `${m.nome} (${m.status})`),
       });
+    }
+    const maquinaIdsContrato = body.ignorar_maquinas_locadas
+      ? body.maquina_ids.filter(machineId => maquinasPorId.get(machineId)?.status === 'disponivel')
+      : body.maquina_ids;
+    if (maquinaIdsContrato.length === 0) {
+      return res.status(400).json({ error: 'Selecione ao menos uma máquina disponível' });
     }
 
     // Calcular valor da comissÃ£o
@@ -214,15 +233,16 @@ router.post('/', authenticate, requireRole('admin', 'operacional'), async (req: 
     if (contratoError || !contrato) throw contratoError;
 
     // Criar itens do contrato
-    const itens = body.maquina_ids.map((mid, idx) => ({
+    const itens = maquinaIdsContrato.map(mid => ({
       contrato_id: contrato.id,
       maquina_id: mid,
-      valor_unitario: body.valores_unitarios[idx] || body.valor_mensal / body.maquina_ids.length,
+      valor_unitario: body.valores_unitarios[body.maquina_ids.indexOf(mid)] || body.valor_mensal / maquinaIdsContrato.length,
     }));
-    await supabase.from('contrato_itens').insert(itens);
+    const { error: itensError } = await supabase.from('contrato_itens').insert(itens);
+    if (itensError) throw itensError;
 
     // Atualizar status das mÃ¡quinas para 'locada'
-    await supabase.from('maquinas').update({ status: 'locada' }).in('id', body.maquina_ids);
+    await supabase.from('maquinas').update({ status: 'locada' }).in('id', maquinaIdsContrato).eq('empresa_id', empresa_id);
 
     // Gerar parcelas
     const parcelas = generateParcelas(contrato.id, empresa_id, body.cliente_id, {
@@ -282,7 +302,7 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
     // Se encerrado, liberar as mÃ¡quinas
     if (status === 'encerrado') {
       const maquinaIds = contrato.contrato_itens.map((ci: { maquina_id: string }) => ci.maquina_id);
-      await supabase.from('maquinas').update({ status: 'disponivel' }).in('id', maquinaIds);
+      await supabase.from('maquinas').update({ status: 'disponivel' }).in('id', maquinaIds).eq('empresa_id', empresa_id);
       // Cancelar parcelas pendentes futuras
       await supabase
         .from('parcelas')
@@ -333,9 +353,17 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
     const { id } = req.params;
     const body = contratoSchema.partial().parse(req.body);
 
+     const { data: contratoAtual } = await supabase
+      .from('contratos')
+      .select('id, contrato_itens(maquina_id)')
+      .eq('id', id)
+      .eq('empresa_id', empresa_id)
+      .single();
+     if (!contratoAtual) return res.status(404).json({ error: 'Contrato não encontrado' });
+
     // Recalcular comissÃ£o se percentual, tipo ou valor mudaram
     if (body.valor_mensal !== undefined || body.percentual_comissao !== undefined || body.tipo_comissao !== undefined || body.valor_comissao !== undefined) {
-       const { data: current } = await supabase.from('contratos').select('*').eq('id', id).single();
+       const { data: current } = await supabase.from('contratos').select('*').eq('id', id).eq('empresa_id', empresa_id).single();
        if (current) {
          const novoValor = body.valor_mensal ?? current.valor_mensal;
          const novoPercentual = body.percentual_comissao ?? current.percentual_comissao;
@@ -353,8 +381,50 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
 
     const maquina_ids = body.maquina_ids;
     const valores_unitarios = body.valores_unitarios;
+    const ignorar_maquinas_locadas = body.ignorar_maquinas_locadas ?? false;
+    const idsAtuais = new Set((contratoAtual.contrato_itens || []).map((item: { maquina_id: string }) => item.maquina_id));
+    let idsPermitidos = maquina_ids;
+
+    if (maquina_ids && (new Set(maquina_ids).size !== maquina_ids.length || !valores_unitarios || valores_unitarios.length !== maquina_ids.length)) {
+      return res.status(400).json({ error: 'A lista de máquinas e seus valores unitários é inválida' });
+    }
+
+    if (maquina_ids) {
+      const { data: maquinas, error: maquinasError } = await supabase
+        .from('maquinas')
+        .select('id, nome, status')
+        .in('id', maquina_ids)
+        .eq('empresa_id', empresa_id);
+      if (maquinasError) throw maquinasError;
+      if ((maquinas || []).length !== maquina_ids.length) {
+        return res.status(400).json({ error: 'Uma ou mais máquinas não foram encontradas nesta empresa' });
+      }
+
+      const maquinasPorId = new Map((maquinas || []).map(maquina => [maquina.id, maquina]));
+      const novasIndisponiveis = maquina_ids
+        .filter(machineId => !idsAtuais.has(machineId))
+        .map(machineId => maquinasPorId.get(machineId)!)
+        .filter(maquina => maquina.status !== 'disponivel');
+      const bloqueadas = novasIndisponiveis.filter(maquina => maquina.status !== 'locada');
+      if (bloqueadas.length > 0 || (novasIndisponiveis.length > 0 && !ignorar_maquinas_locadas)) {
+        return res.status(400).json({
+          error: 'Máquinas indisponíveis',
+          maquinas: (bloqueadas.length > 0 ? bloqueadas : novasIndisponiveis).map(maquina => `${maquina.nome} (${maquina.status})`),
+        });
+      }
+      if (ignorar_maquinas_locadas) {
+        idsPermitidos = maquina_ids.filter(machineId =>
+          idsAtuais.has(machineId) || maquinasPorId.get(machineId)?.status === 'disponivel'
+        );
+        if (idsPermitidos.length === 0) {
+          return res.status(400).json({ error: 'Selecione ao menos uma máquina disponível' });
+        }
+      }
+    }
+
     delete (body as any).maquina_ids;
     delete (body as any).valores_unitarios;
+    delete (body as any).ignorar_maquinas_locadas;
 
     const { data: contrato, error } = await supabase
       .from('contratos')
@@ -369,13 +439,21 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
 
     // Atualizar itens se fornecidos (simplificado)
     if (maquina_ids && valores_unitarios && maquina_ids.length === valores_unitarios.length) {
+      const idsAntigos = (contratoAtual.contrato_itens || []).map((item: { maquina_id: string }) => item.maquina_id);
       await supabase.from('contrato_itens').delete().eq('contrato_id', id);
-      const itens = maquina_ids.map((mid, idx) => ({
+      const idsNovos = idsPermitidos || maquina_ids;
+      const itens = idsNovos.map(mid => ({
         contrato_id: id,
         maquina_id: mid,
-        valor_unitario: valores_unitarios[idx],
+        valor_unitario: valores_unitarios[maquina_ids.indexOf(mid)],
       }));
-      await supabase.from('contrato_itens').insert(itens);
+      const { error: itensError } = await supabase.from('contrato_itens').insert(itens);
+      if (itensError) throw itensError;
+
+      const adicionadas = idsNovos.filter(machineId => !idsAntigos.includes(machineId));
+      if (adicionadas.length > 0) {
+        await supabase.from('maquinas').update({ status: 'locada' }).in('id', adicionadas).eq('empresa_id', empresa_id);
+      }
     }
 
     res.json(contrato);
@@ -391,11 +469,19 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req: AuthReques
     const { empresa_id } = req.user!;
     const { id } = req.params;
 
-    // Liberar as mÃ¡quinas
-    const { data: itens } = await supabase.from('contrato_itens').select('maquina_id').eq('contrato_id', id);
+    const { data: contrato } = await supabase
+      .from('contratos')
+      .select('id, contrato_itens(maquina_id)')
+      .eq('id', id)
+      .eq('empresa_id', empresa_id)
+      .single();
+    if (!contrato) return res.status(404).json({ error: 'Contrato não encontrado' });
+
+    // Liberar as máquinas
+    const itens = contrato.contrato_itens;
     if (itens && itens.length > 0) {
       const maquinaIds = itens.map((ci: any) => ci.maquina_id);
-      await supabase.from('maquinas').update({ status: 'disponivel' }).in('id', maquinaIds);
+      await supabase.from('maquinas').update({ status: 'disponivel' }).in('id', maquinaIds).eq('empresa_id', empresa_id);
     }
 
     const { data: lancamentosContrato } = await supabase

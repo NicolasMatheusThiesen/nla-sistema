@@ -197,10 +197,28 @@ router.delete('/:id', authenticate, requireRole('admin', 'financeiro'), async (r
   try {
     const { empresa_id } = req.user!;
     const { id } = req.params;
-    await supabase.from('lancamentos').update({ status: 'cancelado' }).eq('id', id).eq('empresa_id', empresa_id);
-    res.json({ message: 'LanÃ§amento cancelado' });
+    const { soft } = req.query;
+
+    if (soft === 'true') {
+      const { error: cancelError } = await supabase
+        .from('lancamentos')
+        .update({ status: 'cancelado' })
+        .eq('id', id)
+        .eq('empresa_id', empresa_id);
+      if (cancelError) throw cancelError;
+      return res.json({ message: 'Lançamento cancelado com sucesso' });
+    }
+
+    const { error } = await supabase
+      .from('lancamentos')
+      .delete()
+      .eq('id', id)
+      .eq('empresa_id', empresa_id);
+
+    if (error) throw error;
+    res.json({ message: 'Lançamento excluído com sucesso' });
   } catch {
-    res.status(500).json({ error: 'Erro ao cancelar lanÃ§amento' });
+    res.status(500).json({ error: 'Erro ao excluir lançamento' });
   }
 });
 

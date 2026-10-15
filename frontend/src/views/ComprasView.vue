@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useCompras, useCreateCompra, useUpdateCompra, useFornecedores, useMateriais, useContasBancarias, type Compra } from '@/composables/useApi';
+import { useCompras, useCreateCompra, useUpdateCompra, useDeleteCompra, useFornecedores, useMateriais, useContasBancarias, type Compra } from '@/composables/useApi';
 
 const search = ref('');
 const finalidadeFilter = ref('');
@@ -18,6 +18,7 @@ const { data: contasBancarias } = useContasBancarias();
 
 const createCompra = useCreateCompra();
 const updateCompra = useUpdateCompra();
+const deleteCompra = useDeleteCompra();
 
 const fornecedorOptions = computed(() => {
   const options = (fornecedores.value || []).map(f => ({ value: f.id, label: f.razao_social }));
@@ -48,7 +49,9 @@ const form = ref<Partial<Compra>>({
   data_compra: new Date().toISOString().split('T')[0],
   nota_fiscal: '',
   observacoes: '',
-  conta_bancaria_id: ''
+  conta_bancaria_id: '',
+  numero_parcelas: 1,
+  forma_pagamento: 'a_vista'
 });
 
 // Calcula valor total automaticamente
@@ -71,7 +74,9 @@ const resetForm = () => {
     data_compra: new Date().toISOString().split('T')[0],
     nota_fiscal: '',
     observacoes: '',
-    conta_bancaria_id: ''
+    conta_bancaria_id: '',
+    numero_parcelas: 1,
+    forma_pagamento: 'a_vista'
   };
 };
 
@@ -84,9 +89,19 @@ const openEdit = (item: Compra) => {
   editingId.value = item.id;
   form.value = {
     ...item,
-    data_compra: item.data_compra?.split('T')[0]
+    data_compra: item.data_compra?.split('T')[0],
+    numero_parcelas: item.numero_parcelas || 1,
+    forma_pagamento: item.forma_pagamento || 'a_vista'
   };
   isModalOpen.value = true;
+};
+
+const handleDelete = (compra: Compra) => {
+  if (confirm(`Tem certeza que deseja remover a compra "${compra.descricao}" no valor de ${formatMoney(compra.valor_total)}? Todos os lançamentos vinculados serão removidos.`)) {
+    deleteCompra.mutate(compra.id, {
+      onError: (err: any) => alert("Erro ao excluir compra: " + (err?.response?.data?.error || err.message))
+    });
+  }
 };
 
 const submitCompra = async () => {
@@ -98,6 +113,7 @@ const submitCompra = async () => {
   const payload = { ...form.value };
   if (!payload.fornecedor_id) delete payload.fornecedor_id;
   if (!payload.material_id) delete payload.material_id;
+  if (!payload.conta_bancaria_id) delete payload.conta_bancaria_id;
 
   if (editingId.value) {
     updateCompra.mutate({ id: editingId.value, data: payload }, {
@@ -216,9 +232,13 @@ const formatDate = (dateString?: string) => {
             </td>
             <td class="font-medium text-right text-red-600">
               -{{ formatMoney(compra.valor_total) }}
+              <div v-if="compra.numero_parcelas && compra.numero_parcelas > 1" class="text-xs text-secondary font-normal">
+                Parcelado em {{ compra.numero_parcelas }}x
+              </div>
             </td>
             <td class="text-right actions-cell">
               <Button variant="ghost" size="sm" @click="openEdit(compra)">Editar</Button>
+              <Button variant="ghost" size="sm" class="text-red-500" @click="handleDelete(compra)" :disabled="deleteCompra.isPending.value">Excluir</Button>
             </td>
           </tr>
         </tbody>
@@ -232,7 +252,7 @@ const formatDate = (dateString?: string) => {
           <Input v-model="form.descricao" label="Descrição da Compra" placeholder="Ex: Peças para manutenção da Yale 01" />
         </div>
         
-        <Select 
+        <Select
           v-model="form.fornecedor_id"
           label="Fornecedor" 
           :options="fornecedorOptions" 
@@ -253,16 +273,34 @@ const formatDate = (dateString?: string) => {
         <Input v-model="form.quantidade" label="Quantidade" type="number" @input="updateValorTotal" />
         <Input v-model="form.valor_unitario" label="Valor Unitário (R$)" type="number" @input="updateValorTotal" />
         
-        <div class="col-span-2 divider-label">Dados Fiscais e Financeiros</div>
+        <div class="col-span-2 divider-label">Condição de Pagamento e Dados Financeiros</div>
 
         <Input v-model="form.valor_total" label="Valor Total (R$)" type="number" />
+        <Select
+          v-if="!editingId"
+          v-model="form.forma_pagamento"
+          label="Forma de Pagamento"
+          :options="[{value: 'a_vista', label: 'À Vista'}, {value: 'parcelado', label: 'Parcelado'}]"
+        />
+        <Input
+          v-if="!editingId && form.forma_pagamento === 'parcelado'"
+          v-model="form.numero_parcelas"
+          label="Nº de Parcelas"
+          type="number"
+          min="2"
+          max="48"
+        />
         <Input v-model="form.data_compra" label="Data da Compra" type="date" />
         <Input v-model="form.nota_fiscal" label="Nota Fiscal (Opcional)" />
-        <Select 
+        <Select
           v-model="form.conta_bancaria_id"
           label="Conta Bancária (Pagamento)" 
           :options="contaOptions" 
         />
+
+        <div v-if="!editingId && form.forma_pagamento === 'parcelado' && form.numero_parcelas && form.numero_parcelas > 1" class="col-span-2 text-sm text-secondary p-3 rounded" style="background-color: var(--c-bg-secondary, rgba(0,0,0,0.04));">
+          📅 <strong>Plano de Parcelamento:</strong> Serão gerados <strong>{{ form.numero_parcelas }} lançamentos mensais</strong> de aprox. <strong>{{ formatMoney((form.valor_total || 0) / (form.numero_parcelas || 1)) }}</strong> cada no Contas a Pagar do Financeiro.
+        </div>
         
         <div class="col-span-2">
           <Input v-model="form.observacoes" label="Observações" />

@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useContratos, useCreateContrato, useClientes, type Contrato } from '@/composables/useApi';
+import { useContratos, useCreateContrato, useUpdateContrato, useClientes, useMaquinas, type Contrato } from '@/composables/useApi';
 
 const statusFilter = ref('');
 const isModalOpen = ref(false);
@@ -12,13 +12,18 @@ const editingId = ref<string | null>(null);
 
 const { data: contratos, isLoading } = useContratos();
 const { data: clientes } = useClientes();
+const { data: maquinas } = useMaquinas();
 const createContrato = useCreateContrato();
+const updateContrato = useUpdateContrato();
 
 const clienteOptions = computed(() => {
   return (clientes.value || []).map(c => ({ value: c.id, label: c.razao_social }));
 });
+const visibleMaquinas = computed(() => (maquinas.value || []).filter(m =>
+  !form.value.ignorar_maquinas_locadas || m.status !== 'locada'
+));
 
-const form = ref<Partial<Contrato>>({
+const form = ref<Partial<Contrato> & { maquina_ids: string[]; valores_unitarios: number[]; ignorar_maquinas_locadas: boolean }>({
   numero: '',
   cliente_id: '',
   status: 'ativo',
@@ -27,7 +32,10 @@ const form = ref<Partial<Contrato>>({
   data_fim: '',
   dia_vencimento: 10,
   data_primeiro_vencimento: '',
-  valor_mensal: 0
+  valor_mensal: 0,
+  maquina_ids: [],
+  valores_unitarios: [],
+  ignorar_maquinas_locadas: false,
 });
 
 const resetForm = () => {
@@ -41,7 +49,10 @@ const resetForm = () => {
     data_fim: '',
     dia_vencimento: 10,
     data_primeiro_vencimento: '',
-    valor_mensal: 0
+    valor_mensal: 0,
+    maquina_ids: [],
+    valores_unitarios: [],
+    ignorar_maquinas_locadas: false,
   };
 };
 
@@ -52,14 +63,33 @@ const openNovoContrato = () => {
 
 const openEdit = (item: Contrato) => {
   editingId.value = item.id;
+  const itemMaquinas = (item.contrato_itens || []).map((ci: any) => ci.maquina_id);
+  const itemValores = (item.contrato_itens || []).map((ci: any) => Number(ci.valor_unitario) || 0);
+
   form.value = {
     ...item,
     data_inicio: item.data_inicio?.split('T')[0],
     data_fim: item.data_fim ? item.data_fim.split('T')[0] : '',
     data_primeiro_vencimento: item.data_primeiro_vencimento ? item.data_primeiro_vencimento.split('T')[0] : '',
-    dia_vencimento: item.dia_vencimento || 10
+    dia_vencimento: item.dia_vencimento || 10,
+    maquina_ids: itemMaquinas,
+    valores_unitarios: itemValores,
+    ignorar_maquinas_locadas: false,
   };
   isModalOpen.value = true;
+};
+
+const toggleMaquina = (maquinaId: string) => {
+  const index = form.value.maquina_ids.indexOf(maquinaId);
+  if (index > -1) {
+    form.value.maquina_ids.splice(index, 1);
+    form.value.valores_unitarios.splice(index, 1);
+  } else {
+    form.value.maquina_ids.push(maquinaId);
+    const count = form.value.maquina_ids.length;
+    const unitVal = count > 0 && form.value.valor_mensal ? Number((form.value.valor_mensal / count).toFixed(2)) : 0;
+    form.value.valores_unitarios.push(unitVal);
+  }
 };
 
 const submitContrato = async () => {
@@ -68,13 +98,34 @@ const submitContrato = async () => {
     return;
   }
 
-  createContrato.mutate(form.value, {
+  if (!form.value.maquina_ids || form.value.maquina_ids.length === 0) {
+    alert("Selecione pelo menos uma máquina para o contrato.");
+    return;
+  }
+
+  // Se valores unitários não forem definidos, divide igualmente o valor mensal
+  const count = form.value.maquina_ids.length;
+  const valorPorMaquina = Number((form.value.valor_mensal / count).toFixed(2));
+  const valoresUnitarios = form.value.maquina_ids.map((_, idx) => form.value.valores_unitarios[idx] || valorPorMaquina);
+
+  const payload = {
+    ...form.value,
+    valores_unitarios: valoresUnitarios,
+  };
+
+  const mutationOptions = {
     onSuccess: () => {
       isModalOpen.value = false;
       resetForm();
     },
     onError: (err: any) => alert("Erro ao salvar contrato: " + (err?.response?.data?.error || err.message))
-  });
+  };
+
+  if (editingId.value) {
+    updateContrato.mutate({ id: editingId.value, data: payload }, mutationOptions);
+  } else {
+    createContrato.mutate(payload, mutationOptions);
+  }
 };
 
 const filteredContratos = computed(() => {
@@ -187,7 +238,7 @@ const getStatusClass = (status: string) => {
         <Select 
           v-model="form.tipo_locacao"
           label="Tipo de Locação" 
-          :options="[{value: 'diaria', label: 'Diária'}, {value: 'mensal', label: 'Mensal'}, {value: 'anual', label: 'Anual'}]" 
+          :options="[{value: 'mensal', label: 'Mensal'}, {value: 'semestral', label: 'Semestral'}, {value: 'anual', label: 'Anual'}]"
         />
         <Select 
           v-model="form.status"
@@ -202,15 +253,61 @@ const getStatusClass = (status: string) => {
         <Input v-model="form.data_primeiro_vencimento" label="1º Vencimento (Opcional)" type="date" />
         
         <Input v-model="form.valor_mensal" label="Valor Mensal (R$)" type="number" required />
-        
-        <div class="col-span-2">
-          <!-- <Input label="Observações do Contrato" /> -->
+
+        <!-- Seção de Máquinas / Equipamentos -->
+        <div class="col-span-2 machines-container">
+          <div class="machines-header">
+            <label class="label-title">Máquinas do Contrato (Obrigatório selecionar ao menos uma)</label>
+            <label class="ignore-toggle">
+              <input type="checkbox" v-model="form.ignorar_maquinas_locadas" />
+              <span class="ignore-text">Ocultar máquinas já locadas</span>
+            </label>
+          </div>
+
+          <div v-if="!maquinas || maquinas.length === 0" class="text-sm text-secondary p-3 border rounded">
+            Nenhuma máquina cadastrada no sistema.
+          </div>
+          <div v-else-if="visibleMaquinas.length === 0" class="text-sm text-secondary p-3 border rounded">
+            Nenhuma máquina disponível para este contrato.
+          </div>
+          <div v-else class="machines-grid">
+            <div
+              v-for="m in visibleMaquinas"
+              :key="m.id"
+              class="machine-card"
+              :class="{
+                'is-selected': form.maquina_ids.includes(m.id),
+                'is-disabled': m.status !== 'disponivel' && !form.maquina_ids.includes(m.id)
+              }"
+              @click="(m.status === 'disponivel' || form.maquina_ids.includes(m.id)) && toggleMaquina(m.id)"
+            >
+              <input
+                type="checkbox"
+                :checked="form.maquina_ids.includes(m.id)"
+                :disabled="m.status !== 'disponivel' && !form.maquina_ids.includes(m.id)"
+                @click.stop="toggleMaquina(m.id)"
+              />
+              <div class="machine-details">
+                <span class="m-name">{{ m.nome }}</span>
+                <span class="m-sub">{{ m.modelo || m.tipo }}</span>
+              </div>
+              <span
+                class="badge ml-auto"
+                :class="m.status === 'disponivel' ? 'badge-success' : (m.status === 'locada' ? 'badge-warning' : 'badge-danger')"
+              >
+                {{ m.status === 'disponivel' ? 'Disponível' : (m.status === 'locada' ? 'Já Locada' : m.status) }}
+              </span>
+            </div>
+          </div>
+          <p class="text-xs text-secondary mt-1">
+            {{ form.maquina_ids.length }} máquina(s) selecionada(s) para este contrato.
+          </p>
         </div>
       </div>
       <div class="modal-actions">
         <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
-        <Button variant="primary" @click="submitContrato" :disabled="createContrato.isPending.value">
-          {{ createContrato.isPending.value ? 'Salvando...' : (editingId ? 'Salvar Edição' : 'Salvar Contrato') }}
+        <Button variant="primary" @click="submitContrato" :disabled="createContrato.isPending.value || updateContrato.isPending.value">
+          {{ (createContrato.isPending.value || updateContrato.isPending.value) ? 'Salvando...' : (editingId ? 'Salvar Edição' : 'Salvar Contrato') }}
         </Button>
       </div>
     </Modal>

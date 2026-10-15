@@ -95,8 +95,14 @@ export interface Fornecedor {
   nome_fantasia?: string;
   email?: string;
   telefone?: string;
+  cep?: string;
+  endereco?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
   cidade?: string;
   estado?: string;
+  observacoes?: string;
   ativo: boolean;
   created_at: string;
 }
@@ -116,6 +122,9 @@ export interface Compra {
   nota_fiscal?: string;
   observacoes?: string;
   conta_bancaria_id?: string;
+  numero_parcelas?: number;
+  forma_pagamento?: string;
+  lancamento_id?: string;
 }
 
 export interface Material {
@@ -174,6 +183,10 @@ export interface Contrato {
   dia_vencimento?: number;
   data_primeiro_vencimento?: string;
   valor_mensal: number;
+  maquina_ids?: string[];
+  valores_unitarios?: number[];
+  ignorar_maquinas_locadas?: boolean;
+  contrato_itens?: Array<{ id: string; maquina_id: string; valor_unitario: number; maquinas?: any }>;
   created_at: string;
 }
 
@@ -186,11 +199,65 @@ export interface Lancamento {
   data_vencimento?: string;
   data_pagamento?: string;
   status: string;
+  forma_pagamento?: string;
+  categoria_id?: string;
   cliente_id?: string;
   fornecedor_id?: string;
   clientes?: { razao_social: string };
   fornecedores?: { razao_social: string };
   conta_bancaria_id?: string;
+  observacoes?: string;
+  numero_parcelas?: number;
+  numero_parcela?: number;
+  total_parcelas?: number;
+  compra_id?: string;
+  emprestimo_id?: string;
+}
+
+export interface EmprestimoParcela {
+  id: string;
+  emprestimo_id: string;
+  numero_parcela: number;
+  data_vencimento: string;
+  valor_parcela: number;
+  valor_pago: number;
+  data_pagamento?: string;
+  status: 'pendente' | 'pago' | 'vencido' | 'cancelado';
+  forma_pagamento?: string;
+  conta_bancaria_id?: string;
+  lancamento_id?: string;
+  observacoes?: string;
+}
+
+export interface Emprestimo {
+  id: string;
+  descricao: string;
+  tipo: 'emprestimo_tomado' | 'emprestimo_concedido' | 'financiamento';
+  instituicao_financeira?: string;
+  fornecedor_id?: string;
+  fornecedores?: { id: string; razao_social: string };
+  cliente_id?: string;
+  clientes?: { id: string; razao_social: string };
+  conta_bancaria_id?: string;
+  contas_bancarias?: { id: string; nome: string; banco?: string };
+  valor_total: number;
+  taxa_juros: number;
+  tipo_juros: 'simples' | 'composto' | 'fixo' | 'sem_juros';
+  numero_parcelas: number;
+  valor_parcela: number;
+  data_contratacao: string;
+  data_primeiro_vencimento: string;
+  status: 'ativo' | 'quitado' | 'cancelado';
+  observacoes?: string;
+  emprestimo_parcelas?: EmprestimoParcela[];
+  resumo?: {
+    total_parcelas: number;
+    parcelas_pagas: number;
+    total_pago: number;
+    total_pendente: number;
+    percentual_pago: number;
+  };
+  created_at: string;
 }
 
 export interface LancamentosResponse {
@@ -385,6 +452,18 @@ export function useCreateContrato() {
   return useMutation({
     mutationFn: (data: Partial<Contrato>) => api.post('/api/contratos', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contratos'] }),
+  });
+}
+
+export function useUpdateContrato() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Contrato> }) => api.put(`/api/contratos/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['maquinas'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+    },
   });
 }
 
@@ -692,5 +771,110 @@ export function useDeleteContaBancaria() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/contas-bancarias/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contas_bancarias'] }),
+  });
+}
+
+// --- Exclusão de Lançamento ---
+export function useDeleteLancamento() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/lancamentos/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['contas_bancarias'] });
+    },
+  });
+}
+
+// --- Exclusão de Fornecedor ---
+export function useDeleteFornecedor() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/fornecedores/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fornecedores'] });
+    },
+  });
+}
+
+// --- Exclusão de Compra ---
+export function useDeleteCompra() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/compras/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['compras'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['contas_bancarias'] });
+    },
+  });
+}
+
+// --- Empréstimos e Financiamentos ---
+export function useEmprestimos(params?: { tipo?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['emprestimos', params],
+    queryFn: () => {
+      const qs = new URLSearchParams(params as Record<string, string>).toString();
+      return api.get<Emprestimo[]>(`/api/emprestimos${qs ? `?${qs}` : ''}`);
+    },
+  });
+}
+
+export function useEmprestimo(id: string) {
+  return useQuery({
+    queryKey: ['emprestimo', id],
+    queryFn: () => api.get<Emprestimo>(`/api/emprestimos/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateEmprestimo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<Emprestimo>) => api.post('/api/emprestimos', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emprestimos'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function usePagarParcelaEmprestimo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ emprestimoId, parcelaId, data }: { emprestimoId: string; parcelaId: string; data: any }) =>
+      api.patch(`/api/emprestimos/${emprestimoId}/parcelas/${parcelaId}/pagar`, data),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['emprestimos'] });
+      queryClient.invalidateQueries({ queryKey: ['emprestimo', vars.emprestimoId] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['contas_bancarias'] });
+    },
+  });
+}
+
+export function useDeleteEmprestimo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/emprestimos/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emprestimos'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+// --- Usuário Atual / Perfil ---
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: ['current_user'],
+    queryFn: () => api.get<{ user: { id: string; email: string; role: string; empresa_id: string } }>('/api/auth/me'),
+    staleTime: 5 * 60 * 1000,
   });
 }
