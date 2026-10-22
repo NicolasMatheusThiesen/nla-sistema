@@ -282,11 +282,14 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
   try {
     const { empresa_id } = req.user!;
     const { id } = req.params;
-    const { status } = req.body;
-
-    if (!['ativo', 'suspenso', 'encerrado'].includes(status)) {
-      return res.status(400).json({ error: 'Status invÃ¡lido' });
+    const statusInput = z.object({
+      status: z.enum(['ativo', 'suspenso', 'encerrado']),
+      data_fim: z.string().date().optional(),
+    }).safeParse(req.body);
+    if (!statusInput.success) {
+      return res.status(400).json({ error: 'Status ou data de encerramento invÃ¡lidos' });
     }
+    const { status, data_fim: dataFim } = statusInput.data;
 
     const { data: contrato } = await supabase
       .from('contratos')
@@ -297,7 +300,11 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
 
     if (!contrato) return res.status(404).json({ error: 'Contrato nÃ£o encontrado' });
 
-    await supabase.from('contratos').update({ status }).eq('id', id);
+    await supabase
+      .from('contratos')
+      .update({ status, ...(dataFim ? { data_fim: dataFim } : {}) })
+      .eq('id', id)
+      .eq('empresa_id', empresa_id);
 
     // Se encerrado, liberar as mÃ¡quinas
     if (status === 'encerrado') {
@@ -309,7 +316,7 @@ router.patch('/:id/status', authenticate, requireRole('admin', 'operacional'), a
         .update({ status: 'cancelado' })
         .eq('contrato_id', id)
         .eq('status', 'pendente')
-        .gte('data_vencimento', new Date().toISOString().split('T')[0]);
+        .gte('data_vencimento', dataFim || new Date().toISOString().split('T')[0]);
     }
 
     res.json({ message: `Contrato ${status} com sucesso` });
@@ -425,6 +432,8 @@ router.put('/:id', authenticate, requireRole('admin', 'operacional'), async (req
     delete (body as any).maquina_ids;
     delete (body as any).valores_unitarios;
     delete (body as any).ignorar_maquinas_locadas;
+
+    delete (body as any).data_primeiro_vencimento;
 
     const { data: contrato, error } = await supabase
       .from('contratos')

@@ -467,6 +467,31 @@ export function useUpdateContrato() {
   });
 }
 
+export function useUpdateContratoStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, data_fim }: { id: string; status: string; data_fim?: string }) =>
+      api.patch(`/api/contratos/${id}/status`, { status, data_fim }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['maquinas'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+    },
+  });
+}
+
+export function useDeleteContrato() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/contratos/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contratos'] });
+      queryClient.invalidateQueries({ queryKey: ['maquinas'] });
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] });
+    },
+  });
+}
+
 // --- Financeiro (Lancamentos) ---
 export function useLancamentos(params?: { tipo?: string; status?: string }) {
   return useQuery({

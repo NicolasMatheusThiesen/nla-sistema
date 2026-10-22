@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
-import { useContratos, useCreateContrato, useUpdateContrato, useClientes, useMaquinas, type Contrato } from '@/composables/useApi';
+import { useContratos, useCreateContrato, useUpdateContrato, useUpdateContratoStatus, useDeleteContrato, useClientes, useMaquinas, type Contrato } from '@/composables/useApi';
 
 const statusFilter = ref('');
 const isModalOpen = ref(false);
@@ -15,6 +15,8 @@ const { data: clientes } = useClientes();
 const { data: maquinas } = useMaquinas();
 const createContrato = useCreateContrato();
 const updateContrato = useUpdateContrato();
+const updateContratoStatus = useUpdateContratoStatus();
+const deleteContrato = useDeleteContrato();
 
 const clienteOptions = computed(() => {
   return (clientes.value || []).map(c => ({ value: c.id, label: c.razao_social }));
@@ -128,6 +130,29 @@ const submitContrato = async () => {
   }
 };
 
+const today = () => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+const encerrarContrato = async (contrato: Contrato) => {
+  if (!window.confirm(`Encerrar o contrato ${contrato.numero}? As parcelas futuras serão canceladas e as máquinas liberadas.`)) return;
+  try {
+    await updateContratoStatus.mutateAsync({ id: contrato.id, status: 'encerrado', data_fim: today() });
+  } catch (err: any) {
+    alert(`Erro ao encerrar contrato: ${err.message}`);
+  }
+};
+
+const excluirContrato = async (contrato: Contrato) => {
+  if (!window.confirm(`Excluir definitivamente o contrato ${contrato.numero}? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await deleteContrato.mutateAsync(contrato.id);
+  } catch (err: any) {
+    alert(`Erro ao excluir contrato: ${err.message}`);
+  }
+};
+
 const filteredContratos = computed(() => {
   if (!contratos.value) return [];
   if (!statusFilter.value) return contratos.value;
@@ -146,9 +171,8 @@ const formatDate = (dateString: string) => {
 
 const getStatusClass = (status: string) => {
   if (status === 'ativo') return 'badge-success';
-  if (status === 'pendente') return 'badge-warning';
-  if (status === 'cancelado') return 'badge-danger';
-  if (status === 'finalizado') return 'badge-ghost';
+  if (status === 'suspenso') return 'badge-warning';
+  if (status === 'encerrado') return 'badge-ghost';
   return 'badge-ghost';
 };
 </script>
@@ -171,9 +195,8 @@ const getStatusClass = (status: string) => {
         <select v-model="statusFilter" class="select-filter">
           <option value="">Todos os Status</option>
           <option value="ativo">Ativo</option>
-          <option value="pendente">Pendente</option>
-          <option value="cancelado">Cancelado</option>
-          <option value="finalizado">Finalizado</option>
+          <option value="suspenso">Suspenso</option>
+          <option value="encerrado">Encerrado</option>
         </select>
       </div>
     </div>
@@ -220,6 +243,19 @@ const getStatusClass = (status: string) => {
             <td class="text-right actions-cell">
               <Button variant="ghost" size="sm">PDF</Button>
               <Button variant="ghost" size="sm" @click="openEdit(contrato)">Editar</Button>
+              <Button
+                v-if="contrato.status === 'ativo' || contrato.status === 'suspenso'"
+                variant="ghost"
+                size="sm"
+                :disabled="updateContratoStatus.isPending.value"
+                @click="encerrarContrato(contrato)"
+              >Encerrar</Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                :disabled="deleteContrato.isPending.value"
+                @click="excluirContrato(contrato)"
+              >Excluir</Button>
             </td>
           </tr>
         </tbody>
@@ -240,12 +276,6 @@ const getStatusClass = (status: string) => {
           label="Tipo de Locação" 
           :options="[{value: 'mensal', label: 'Mensal'}, {value: 'semestral', label: 'Semestral'}, {value: 'anual', label: 'Anual'}]"
         />
-        <Select 
-          v-model="form.status"
-          label="Status" 
-          :options="[{value: 'ativo', label: 'Ativo'}, {value: 'pendente', label: 'Pendente'}, {value: 'cancelado', label: 'Cancelado'}, {value: 'finalizado', label: 'Finalizado'}]" 
-        />
-        
         <Input v-model="form.data_inicio" label="Data de Início" type="date" required />
         <Input v-model="form.data_fim" label="Data de Fim (Opcional)" type="date" />
         
