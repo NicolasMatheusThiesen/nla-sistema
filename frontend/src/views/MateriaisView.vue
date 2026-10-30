@@ -15,7 +15,15 @@ const filterFinalidade = ref('');
 const isModalOpen = ref(false);
 const editingMaterial = ref<Material | null>(null);
 
-const form = ref({
+const form = ref<{
+  nome: string;
+  finalidade: Material['finalidade'];
+  unidade_medida: string;
+  custo_unitario: number;
+  valor_venda: number;
+  quantidade_estoque: number;
+  ativo: string;
+}>({
   nome: '',
   finalidade: 'consumo',
   unidade_medida: 'un',
@@ -195,8 +203,8 @@ const saveMaterial = async () => {
       <template #footer>
         <div class="flex justify-end gap-3 w-full">
           <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
-          <Button variant="primary" @click="saveMaterial" :disabled="createMaterial.isPending || updateMaterial.isPending">
-            {{ (createMaterial.isPending || updateMaterial.isPending) ? 'Salvando...' : 'Salvar Material' }}
+          <Button variant="primary" @click="saveMaterial" :disabled="createMaterial.isPending.value || updateMaterial.isPending.value">
+            {{ (createMaterial.isPending.value || updateMaterial.isPending.value) ? 'Salvando...' : 'Salvar Material' }}
           </Button>
         </div>
       </template>

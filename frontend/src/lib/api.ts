@@ -23,6 +23,10 @@ export class ApiError extends Error {
   }
 }
 
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Ocorreu um erro inesperado';
+}
+
 // Auth State
 export const authService = {
   setSession(session: any, user: any) {

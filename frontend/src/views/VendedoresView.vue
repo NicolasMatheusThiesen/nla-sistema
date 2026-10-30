@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
+import { getErrorMessage } from '@/lib/api';
 import { useVendedores, useCreateVendedor, useUpdateVendedor, type Vendedor } from '@/composables/useApi';
 
 const filterStatus = ref('ativos');
@@ -15,7 +16,7 @@ const { data: vendedores, isLoading } = useVendedores();
 const createVendedor = useCreateVendedor();
 const updateVendedor = useUpdateVendedor();
 
-const form = ref<Partial<Vendedor>>({
+const form = ref<Omit<Partial<Vendedor>, 'ativo'> & { ativo: string }>({
   nome: '',
   cpf: '',
   email: '',
@@ -53,7 +54,7 @@ const submitVendedor = async () => {
     return;
   }
 
-  const data = { ...form.value, ativo: form.value.ativo === 'true' };
+  const data: Partial<Vendedor> = { ...form.value, ativo: form.value.ativo === 'true' };
 
   if (editingId.value) {
     updateVendedor.mutate({ id: editingId.value, data }, {
@@ -61,15 +62,15 @@ const submitVendedor = async () => {
         isModalOpen.value = false;
         resetForm();
       },
-      onError: (err: any) => alert("Erro ao editar vendedor: " + (err?.response?.data?.error || err.message))
+      onError: (err: unknown) => alert(`Erro ao editar vendedor: ${getErrorMessage(err)}`)
     });
   } else {
-    createVendedor.mutate(data as any, {
+    createVendedor.mutate(data, {
       onSuccess: () => {
         isModalOpen.value = false;
         resetForm();
       },
-      onError: (err: any) => alert("Erro ao salvar vendedor: " + (err?.response?.data?.error || err.message))
+      onError: (err: unknown) => alert(`Erro ao salvar vendedor: ${getErrorMessage(err)}`)
     });
   }
 };

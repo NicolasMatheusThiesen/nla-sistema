@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button.vue';
 import Modal from '@/components/ui/Modal.vue';
 import Input from '@/components/ui/Input.vue';
 import Select from '@/components/ui/Select.vue';
+import { getErrorMessage } from '@/lib/api';
 import { useContratos, useCreateContrato, useUpdateContrato, useUpdateContratoStatus, useDeleteContrato, useClientes, useMaquinas, type Contrato } from '@/composables/useApi';
 
 const statusFilter = ref('');
@@ -65,8 +66,8 @@ const openNovoContrato = () => {
 
 const openEdit = (item: Contrato) => {
   editingId.value = item.id;
-  const itemMaquinas = (item.contrato_itens || []).map((ci: any) => ci.maquina_id);
-  const itemValores = (item.contrato_itens || []).map((ci: any) => Number(ci.valor_unitario) || 0);
+  const itemMaquinas = (item.contrato_itens || []).map(ci => ci.maquina_id);
+  const itemValores = (item.contrato_itens || []).map(ci => Number(ci.valor_unitario) || 0);
 
   form.value = {
     ...item,
@@ -111,7 +112,6 @@ const submitContrato = async () => {
   const valoresUnitarios = form.value.maquina_ids.map((_, idx) => form.value.valores_unitarios[idx] || valorPorMaquina);
 
   const payload = {
-    ...form.value,
     valores_unitarios: valoresUnitarios,
   };
 
@@ -120,13 +120,54 @@ const submitContrato = async () => {
       isModalOpen.value = false;
       resetForm();
     },
-    onError: (err: any) => alert("Erro ao salvar contrato: " + (err?.response?.data?.error || err.message))
+    onError: (err: unknown) => alert(`Erro ao salvar contrato: ${getErrorMessage(err)}`)
   };
 
   if (editingId.value) {
-    updateContrato.mutate({ id: editingId.value, data: payload }, mutationOptions);
+    const original = contratos.value?.find(contrato => contrato.id === editingId.value);
+    if (!original) {
+      alert('Não foi possível localizar o contrato para edição. Atualize a página e tente novamente.');
+      return;
+    }
+
+    const changedData: Partial<Contrato> = {};
+    if ((form.value.numero || '') !== original.numero) changedData.numero = form.value.numero;
+    if (form.value.cliente_id !== original.cliente_id) changedData.cliente_id = form.value.cliente_id;
+    if (form.value.tipo_locacao !== original.tipo_locacao) changedData.tipo_locacao = form.value.tipo_locacao;
+    if (form.value.data_inicio !== original.data_inicio?.split('T')[0]) changedData.data_inicio = form.value.data_inicio;
+    if ((form.value.data_fim || '') !== (original.data_fim?.split('T')[0] || '')) changedData.data_fim = form.value.data_fim;
+    if (Number(form.value.dia_vencimento) !== Number(original.dia_vencimento || 10)) {
+      changedData.dia_vencimento = Number(form.value.dia_vencimento);
+    }
+    if ((form.value.data_primeiro_vencimento || '') !== (original.data_primeiro_vencimento?.split('T')[0] || '')) {
+      changedData.data_primeiro_vencimento = form.value.data_primeiro_vencimento;
+    }
+    if (Number(form.value.valor_mensal) !== Number(original.valor_mensal)) {
+      changedData.valor_mensal = Number(form.value.valor_mensal);
+    }
+
+    const maquinasOriginais = original.contrato_itens || [];
+    const idsOriginais = maquinasOriginais.map(item => item.maquina_id);
+    const valoresOriginais = maquinasOriginais.map(item => Number(item.valor_unitario) || 0);
+    const maquinasAlteradas = form.value.maquina_ids.length !== idsOriginais.length
+      || form.value.maquina_ids.some((id, index) => id !== idsOriginais[index]);
+    const valoresAlterados = form.value.valores_unitarios.length !== valoresOriginais.length
+      || form.value.valores_unitarios.some((valor, index) => Number(valor) !== valoresOriginais[index]);
+
+    if (maquinasAlteradas || valoresAlterados) {
+      changedData.maquina_ids = form.value.maquina_ids;
+      changedData.valores_unitarios = valoresUnitarios;
+    }
+
+    if (Object.keys(changedData).length === 0) {
+      isModalOpen.value = false;
+      resetForm();
+      return;
+    }
+
+    updateContrato.mutate({ id: editingId.value, data: changedData }, mutationOptions);
   } else {
-    createContrato.mutate(payload, mutationOptions);
+    createContrato.mutate({ ...form.value, ...payload }, mutationOptions);
   }
 };
 
@@ -139,8 +180,8 @@ const encerrarContrato = async (contrato: Contrato) => {
   if (!window.confirm(`Encerrar o contrato ${contrato.numero}? As parcelas futuras serão canceladas e as máquinas liberadas.`)) return;
   try {
     await updateContratoStatus.mutateAsync({ id: contrato.id, status: 'encerrado', data_fim: today() });
-  } catch (err: any) {
-    alert(`Erro ao encerrar contrato: ${err.message}`);
+  } catch (err: unknown) {
+    alert(`Erro ao encerrar contrato: ${getErrorMessage(err)}`);
   }
 };
 
@@ -148,8 +189,8 @@ const excluirContrato = async (contrato: Contrato) => {
   if (!window.confirm(`Excluir definitivamente o contrato ${contrato.numero}? Esta ação não pode ser desfeita.`)) return;
   try {
     await deleteContrato.mutateAsync(contrato.id);
-  } catch (err: any) {
-    alert(`Erro ao excluir contrato: ${err.message}`);
+  } catch (err: unknown) {
+    alert(`Erro ao excluir contrato: ${getErrorMessage(err)}`);
   }
 };
 
@@ -279,7 +320,7 @@ const getStatusClass = (status: string) => {
         <Input v-model="form.data_inicio" label="Data de Início" type="date" required />
         <Input v-model="form.data_fim" label="Data de Fim (Opcional)" type="date" />
         
-        <Input v-model="form.dia_vencimento" label="Dia de Vencimento" type="number" min="1" max="31" required />
+        <Input v-model="form.dia_vencimento" label="Dia de Vencimento" type="number" min="1" max="28" required />
         <Input v-model="form.data_primeiro_vencimento" label="1º Vencimento (Opcional)" type="date" />
         
         <Input v-model="form.valor_mensal" label="Valor Mensal (R$)" type="number" required />

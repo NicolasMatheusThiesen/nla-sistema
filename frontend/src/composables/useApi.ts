@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
-import { api, ApiError } from '@/lib/api';
-import { ref } from 'vue';
+import { api } from '@/lib/api';
 
 // --- Types ---
 export interface DashboardData {
@@ -186,7 +185,12 @@ export interface Contrato {
   maquina_ids?: string[];
   valores_unitarios?: number[];
   ignorar_maquinas_locadas?: boolean;
-  contrato_itens?: Array<{ id: string; maquina_id: string; valor_unitario: number; maquinas?: any }>;
+  contrato_itens?: Array<{
+    id: string;
+    maquina_id: string;
+    valor_unitario: number;
+    maquinas?: { id: string; nome: string; modelo?: string | null; tipo?: string; status: string };
+  }>;
   created_at: string;
 }
 
@@ -296,15 +300,15 @@ export interface OrdemServico {
   conta_bancaria_id?: string;
 }
 
-import { unref } from 'vue';
+import { unref, type MaybeRef } from 'vue';
 
 // --- Dashboard ---
-export function useDashboard(params?: any) {
+export function useDashboard(params?: MaybeRef<{ mes?: string }>) {
   return useQuery({
     queryKey: ['dashboard', params],
     queryFn: () => {
       const p = unref(params);
-      const qs = new URLSearchParams(p as Record<string, string>).toString();
+      const qs = new URLSearchParams(p).toString();
       return api.get<DashboardData>(`/api/dashboard${qs ? `?${qs}` : ''}`);
     },
     refetchInterval: 60000,
@@ -871,7 +875,17 @@ export function useCreateEmprestimo() {
 export function usePagarParcelaEmprestimo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ emprestimoId, parcelaId, data }: { emprestimoId: string; parcelaId: string; data: any }) =>
+    mutationFn: ({ emprestimoId, parcelaId, data }: {
+      emprestimoId: string;
+      parcelaId: string;
+      data: {
+        valor_pago?: number;
+        data_pagamento?: string;
+        forma_pagamento?: string;
+        conta_bancaria_id?: string;
+        observacoes?: string;
+      };
+    }) =>
       api.patch(`/api/emprestimos/${emprestimoId}/parcelas/${parcelaId}/pagar`, data),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ['emprestimos'] });

@@ -149,8 +149,8 @@ const saveServico = async () => {
       <template #footer>
         <div class="flex justify-end gap-3 w-full">
           <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
-          <Button variant="primary" @click="saveServico" :disabled="createServico.isPending || updateServico.isPending">
-            {{ (createServico.isPending || updateServico.isPending) ? 'Salvando...' : 'Salvar Serviço' }}
+          <Button variant="primary" @click="saveServico" :disabled="createServico.isPending.value || updateServico.isPending.value">
+            {{ (createServico.isPending.value || updateServico.isPending.value) ? 'Salvando...' : 'Salvar Serviço' }}
           </Button>
         </div>
       </template>

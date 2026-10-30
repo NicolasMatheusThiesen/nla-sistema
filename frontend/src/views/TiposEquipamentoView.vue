@@ -136,8 +136,8 @@ const saveTipo = async () => {
       <template #footer>
         <div class="flex justify-end gap-3 w-full">
           <Button variant="outline" @click="isModalOpen = false">Cancelar</Button>
-          <Button variant="primary" @click="saveTipo" :disabled="createTipo.isPending || updateTipo.isPending">
-            {{ (createTipo.isPending || updateTipo.isPending) ? 'Salvando...' : 'Salvar Tipo' }}
+          <Button variant="primary" @click="saveTipo" :disabled="createTipo.isPending.value || updateTipo.isPending.value">
+            {{ (createTipo.isPending.value || updateTipo.isPending.value) ? 'Salvando...' : 'Salvar Tipo' }}
           </Button>
         </div>
       </template>

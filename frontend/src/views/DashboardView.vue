@@ -7,7 +7,7 @@ import Input from '@/components/ui/Input.vue';
 
 const mesFilter = ref(new Date().toISOString().slice(0, 7)); // YYYY-MM
 const queryParams = computed(() => ({ mes: mesFilter.value }));
-const { data: dashboardData, isLoading } = useDashboard(queryParams as any);
+const { data: dashboardData } = useDashboard(queryParams);
 
 const formatMoney = (val: number) => {
   if (val == null) return 'R$ 0,00';
